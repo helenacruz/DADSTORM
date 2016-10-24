@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 
 namespace Shared_Library
 {
-    public class Interfaces
+   
+    public interface IRemotePuppetMaster
     {
+        void registerLog();
     }
+    
 }
