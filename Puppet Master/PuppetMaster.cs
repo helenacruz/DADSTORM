@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Shared_Library;
 using System.Runtime.Remoting;
+using System.IO;
 
 namespace PuppetMaster
 {
@@ -23,6 +24,8 @@ namespace PuppetMaster
     {
         private static String CONFIG_FILE_PATH = @"../../Config.txt";
         private static String SCRIPT_FILE_PATH = @"../../Script.txt";
+
+        private Network network = new Network();
 
         public void start()
         {
@@ -49,10 +52,199 @@ namespace PuppetMaster
 
         private void readConfig()
         {
+            string line;
+            int lineNr = 0;
+            StreamReader file;
+
+            file = new StreamReader(CONFIG_FILE_PATH);
+
+            while ((line = file.ReadLine()) != null)
+                doConfigLine(line, lineNr++);
+
+            Console.WriteLine("Successfully parsed the configuration file");
         }
 
         private void readScript()
         {
+            string line;
+            int lineNr = 0;
+            StreamReader file;
+
+            file = new StreamReader(SCRIPT_FILE_PATH);
+
+            while ((line = file.ReadLine()) != null)
+                // shell.doCommand(line, lineNr++);
+
+            Console.WriteLine("Successfully parsed the script file");
+        }
+
+        private void doConfigLine(String line, int lineNr)
+        {
+            string[] lineArray = line.Split(' ');
+            string option = lineArray[0].ToLower();
+
+            if (option == "semantics")
+            {
+                doSemanticsCommand(lineArray, lineNr);
+            }
+            else if (option == "logginglevel")
+            {
+                doLoggingLevelCommand(lineArray, lineNr);
+            }
+            else if (option == "start")
+            {
+                doStartCommand(lineArray, lineNr);
+            }
+            else if (option == "interval")
+            {
+                doIntervalCommand(lineArray, lineNr);
+            }
+            else if (option == "crash")
+            {
+                doCrashCommand(lineArray, lineNr);
+            }
+            else if (option == "freeze")
+            {
+                doFreezeCommand(lineArray, lineNr);
+            }
+            else if (option == "unfreeze")
+            {
+                doUnfreezeCommand(lineArray, lineNr);
+            }
+            else if (option == "wait")
+            {
+                doWaitCommand(lineArray, lineNr);
+            }
+            else if (option.StartsWith("op"))
+            {
+                doOperatorCommand(lineArray, lineNr);
+            }
+            else if (option.StartsWith("%"))
+            {
+                // do nothing, it's a comment
+            }
+            else
+            {
+                Console.WriteLine("The command at line " + lineNr + " doesn't exist:" + line);
+            }
+        }
+
+        private void doSemanticsCommand(string[] line, int lineNr)
+        {
+            if (line.Length != 2)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Semantics at-most-once | at-least-once | exactly-once");
+
+            if (line[1].ToLower() == SysConfig.AT_LEAST_ONCE ||
+                line[1].ToLower() == SysConfig.AT_MOST_ONCE ||
+                line[1].ToLower() == SysConfig.EXACTLY_ONCE)
+            {
+                this.network.Semantics = line[1].ToLower();
+            }
+            else
+            {
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The valid options for semantics are: at-most-once | at-least-once | exactly-once.");
+            }
+                
+        }
+
+        private void doLoggingLevelCommand(string[] line, int lineNr)
+        {
+            if (line.Length != 2)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is LoggingLevel light | full");
+
+            if (line[1].ToLower() == SysConfig.LIGHT ||
+                line[1].ToLower() == SysConfig.FULL)
+            {
+                this.network.LoggingLevel = line[1].ToLower();
+            }
+            else
+            {
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The valid options for LoggingLevel are: light | full.");
+            }
+        }
+
+        private void doStartCommand(string[] line, int lineNr)
+        {
+            if (line.Length != 2)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Start operator_id");
+
+            // START COMMAND
+        }
+
+        private void doIntervalCommand(string[] line, int lineNr)
+        {
+            int ms;
+
+            if (line.Length != 3)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Interval operator_id x_ms");
+
+            if (Int32.TryParse(line[2], out ms))
+            {
+                // INTERVAL COMMAND 
+            }
+            else
+            {
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". You must insert a valid number.");
+            }
+
+        }
+
+        private void doCrashCommand(string[] line, int lineNr)
+        {
+            if (line.Length != 2)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Crash process_name");
+
+            // CRASH COMMAND
+        }
+
+        private void doFreezeCommand(string[] line, int lineNr)
+        {
+            if (line.Length != 2)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Freeze process_name");
+
+            // FREEZE COMMAND
+        }
+
+        private void doUnfreezeCommand(string[] line, int lineNr)
+        {
+            if (line.Length != 2)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Unfreeze process_name");
+
+            // UNFREEZE COMMAND
+        }
+
+        private void doWaitCommand(string[] line, int lineNr)
+        {
+            int ms; 
+
+            if (line.Length != 2)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Wait x_ms");
+
+            if (Int32.TryParse(line[2], out ms))
+            {
+                // WAIT COMMAND 
+            }
+            else
+            {
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". You must insert a valid number.");
+            }
+        }
+
+        private void doOperatorCommand(string[] line, int lineNr)
+        {
+
         }
 
         private void manualMode()
