@@ -4,9 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Shared_Library
+namespace Operator
 {
-    public class Class1
+    class Operator
     {
+        static void Main(string[] args)
+        {
+        }
     }
 }

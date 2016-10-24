@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Operator
+namespace PuppetMaster
 {
-    class Program
+
+    class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
         static void Main(string[] args)
         {

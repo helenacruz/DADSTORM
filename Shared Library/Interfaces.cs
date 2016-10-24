@@ -4,12 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ProcessCreation
+namespace Shared_Library
 {
-    class Program
+    public class Interfaces
     {
-        static void Main(string[] args)
-        {
-        }
     }
 }
