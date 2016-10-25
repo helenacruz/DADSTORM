@@ -11,5 +11,12 @@ namespace Shared_Library
     {
         void registerLog();
     }
-    
+
+
+
+    public interface IRemoteOperator
+    {
+        void start();
+    }
+
 }
