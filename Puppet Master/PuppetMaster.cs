@@ -42,8 +42,6 @@ namespace PuppetMaster
             registerPM();
             Console.WriteLine("Reading configuration file...");
             readConfig();
-            Console.WriteLine("Processing script file...");
-            readScript();
             Console.WriteLine("Waiting input (exit to finish)");
             manualMode();
             Console.WriteLine("Shutingdown the network...");
@@ -71,20 +69,6 @@ namespace PuppetMaster
                 doConfigLine(line, lineNr++);
 
             Console.WriteLine("Successfully parsed the configuration file");
-        }
-
-        private void readScript()
-        {
-            string line;
-            int lineNr = 0;
-            StreamReader file;
-
-            file = new StreamReader(SCRIPT_FILE_PATH);
-
-            while ((line = file.ReadLine()) != null)
-                // shell.doCommand(line, lineNr++);
-
-            Console.WriteLine("Successfully parsed the script file");
         }
 
         private void doConfigLine(String line, int lineNr)
