@@ -24,12 +24,16 @@ namespace PuppetMaster
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
         private static String CONFIG_FILE_PATH = @"../../Config.txt";
-        private static String SCRIPT_FILE_PATH = @"../../Script.txt";
 
-        private SysConfig sysConfig = new SysConfig();
+        private SysConfig sysConfig;
+
+        private Dictionary<int, List<string>> operators;
 
         public PuppetMaster()
         {
+            sysConfig = new SysConfig();
+            operators = new Dictionary<int, List<string>>();
+
             sysConfig.Semantics = SysConfig.AT_MOST_ONCE;
             sysConfig.LoggingLevel = SysConfig.LIGHT;
             sysConfig.Routing = SysConfig.PRIMARY;
@@ -249,7 +253,166 @@ namespace PuppetMaster
 
         private void doOperatorCommand(string[] line, int lineNr)
         {
+            if (line.Length < 7)
+                throw new ParseException("Too few arguments to OP command. Usage: " +
+                   "operator_id INPUT_OPS source_op_id1|filepath1,...,source_op_idn|filepathn " +
+                   "REP_FACT repl_factor ROUTING primary | hashing(n) | random " +
+                   "ADDRESS URL1, ..., URLrepl_fact " +
+                   "OPERATOR_SPEC operator_type operator_param_1, ..., operator_param_n");
 
+            int i;
+            int len = line.Length;
+            int rep_fact;
+            int op;
+            string routing;
+            List<string> sources;
+            List<string> addresses;
+            Dictionary<string, List<string>> opSpec;
+
+            if (!Int32.TryParse(line[0].ToLower().Replace("op", ""), out op))
+            {
+                throw new ParseException("Invalid operator id. Must be OPn, where n is an integer.");
+            }
+            
+            for (i = 0; i < len; i++)
+            {
+                if (line[i].ToLower() == "input_ops")
+                {
+                    sources = doSources(line, i);
+                }
+                if (line[i].ToLower() == "rep_fact")
+                {
+                    rep_fact = doRepFact(line, i);
+                }
+                if (line[i].ToLower() == "routing")
+                {
+                    routing = doRouting(line, i);
+                }
+                if (line[i].ToLower() == "address")
+                {
+                    addresses = doAddresses(line, i);
+                    operators.Add(op, addresses);
+                }
+                if (line[i].ToLower() == "operator_spec")
+                {
+                    opSpec = doOperatorSpec(line, i);
+                }
+            }
+
+            // create operator
+        }
+
+        private List<string> doSources(String[] line, int i)
+        {
+            int len;
+            List<string> sources = new List<string>();
+
+            i++; // i is "input_ops"
+
+            for (len = line.Length; i < len; i++)
+            {
+                if (line[i].ToLower() == "rep_fact" || line[i].ToLower() == "routing" ||
+                    line[i].ToLower() == "address" || line[i].ToLower() == "operator_spec")
+                {
+                    break;
+                }
+                sources.Add(line[i]);
+            }
+
+            return sources;
+        }
+
+        private int doRepFact(String[] line, int i)
+        {
+            int len;
+            int rep_factor;
+
+            i++; // i is "rep_factor"
+
+            for (len = line.Length; i < len; i++)
+            {
+                if (line[i].ToLower() == "address" || line[i].ToLower() == "routing" ||
+                    line[i].ToLower() == "input_ops" || line[i].ToLower() == "operator_spec")
+                {
+                    break;
+                }
+                if (Int32.TryParse(line[i], out rep_factor))
+                {
+                    return rep_factor;
+                }
+            }
+
+            throw new ParseException("Rep_factor");
+        }
+
+        private string doRouting(String[] line, int i)
+        {
+            int len;
+            string routing;
+
+            i++; // i is "routing"
+
+            for (len = line.Length; i < len; i++)
+            {
+                if (line[i].ToLower() == "rep_fact" || line[i].ToLower() == "input_ops" ||
+                    line[i].ToLower() == "address" || line[i].ToLower() == "operator_spec")
+                {
+                    break;
+                }
+                routing = line[i].ToLower();
+                return routing;
+            }
+
+            throw new ParseException("Routing");
+        }
+
+        private List<string> doAddresses(String[] line, int i)
+        {
+            int len;
+            List<string> addresses = new List<string>();
+
+            i++; // i is "adress"
+
+            for (len = line.Length; i < len; i++)
+            {
+                if (line[i].ToLower() == "rep_fact" || line[i].ToLower() == "input_ops" ||
+                    line[i].ToLower() == "routing" || line[i].ToLower() == "operator_spec")
+                {
+                    break;
+                }
+                addresses.Add(line[i]);
+            }
+
+            return addresses;
+        }
+
+        private Dictionary<string, List<string>> doOperatorSpec(String[] line, int i)
+        {
+            int len;
+            string operatorType;
+            List<string> operatorParams = new List<string>();
+            Dictionary<string, List<string>> op = new Dictionary<string, List<string>>();
+
+            i++; // i is "adress"
+
+            operatorType = line[i];
+
+            i++;
+
+            for (len = line.Length; i < len; i++)
+            {
+                if (line[i].ToLower() == "rep_fact" || line[i].ToLower() == "input_ops" ||
+                    line[i].ToLower() == "routing" || line[i].ToLower() == "address")
+                {
+                    break;
+                }
+
+                operatorParams.Add(line[i].ToLower());
+            }
+
+            op.Add(operatorType, operatorParams);
+
+            return op;
         }
 
         private void manualMode()
