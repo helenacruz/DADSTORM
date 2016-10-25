@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Shared_Library;
 using System.Runtime.Remoting;
 using System.IO;
+using Shared_Library;
+
 
 namespace PuppetMaster
 {
@@ -25,8 +27,15 @@ namespace PuppetMaster
         private static String CONFIG_FILE_PATH = @"../../Config.txt";
         private static String SCRIPT_FILE_PATH = @"../../Script.txt";
 
-        private Network network = new Network();
+        private SysConfig sysConfig = new SysConfig();
 
+        public PuppetMaster()
+        {
+            sysConfig.Semantics = SysConfig.AT_MOST_ONCE;
+            sysConfig.LoggingLevel = SysConfig.LIGHT;
+            sysConfig.Routing = SysConfig.PRIMARY;
+        }
+       
         public void start()
         {
             Console.WriteLine("Registering Puppet Master...");
@@ -95,6 +104,10 @@ namespace PuppetMaster
             {
                 doStartCommand(lineArray, lineNr);
             }
+            else if (option == "status")
+            {
+                doStatusCommand(lineArray, lineNr);
+            }
             else if (option == "interval")
             {
                 doIntervalCommand(lineArray, lineNr);
@@ -139,7 +152,7 @@ namespace PuppetMaster
                 line[1].ToLower() == SysConfig.AT_MOST_ONCE ||
                 line[1].ToLower() == SysConfig.EXACTLY_ONCE)
             {
-                this.network.Semantics = line[1].ToLower();
+                sysConfig.Semantics = line[1].ToLower();
             }
             else
             {
@@ -158,7 +171,7 @@ namespace PuppetMaster
             if (line[1].ToLower() == SysConfig.LIGHT ||
                 line[1].ToLower() == SysConfig.FULL)
             {
-                this.network.LoggingLevel = line[1].ToLower();
+                sysConfig.LoggingLevel = line[1].ToLower();
             }
             else
             {
@@ -174,6 +187,15 @@ namespace PuppetMaster
                     ". The correct format is Start operator_id");
 
             // START COMMAND
+        }
+
+        private void doStatusCommand(string[] line, int lineNr)
+        {
+            if (line.Length != 1)
+                throw new ParseException("Error parsing file in line " + lineNr +
+                    ". The correct format is Start operator_id");
+
+            // STATUS COMMAND
         }
 
         private void doIntervalCommand(string[] line, int lineNr)
