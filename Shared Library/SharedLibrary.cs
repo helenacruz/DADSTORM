@@ -11,6 +11,9 @@ namespace Shared_Library
         public const int PM_PORT = 10000;
         public const string PM_NAME = "puppet";
 
+        public const int PCS_PORT = 10001;
+        public const string PCS_NAME = "pcreation";
+
         // Semantics
         public const string AT_MOST_ONCE = "at-most-once";
         public const string AT_LEAST_ONCE = "at-least-once";
@@ -24,6 +27,13 @@ namespace Shared_Library
         public const string PRIMARY = "primary";
         public const string RANDOM = "random";
         public const string HASHING = "hashing";
+
+        // Commands
+        public const string UNIQUE = "unique";
+        public const string COUNT = "count";
+        public const string DUP = "dup";
+        public const string FILTER = "filter";
+        public const string CUSTOM = "custom";
 
         private string semantics;
         private string loggingLevel;
