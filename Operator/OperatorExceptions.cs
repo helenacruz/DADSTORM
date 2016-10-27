@@ -14,4 +14,14 @@ namespace Operator
 
         public CannotAccessRemoteObjectException(String message, Exception inner) : base(message, inner) { }
     }
+
+    class OperatorSpecsException : Exception
+    {
+        public OperatorSpecsException() { }
+
+        public OperatorSpecsException(String message) : base(message) { }
+
+        public OperatorSpecsException(String message, Exception inner) : base(message, inner) { }
+
+    }
 }

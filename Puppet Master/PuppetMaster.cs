@@ -24,6 +24,7 @@ namespace PuppetMaster
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
         private static String CONFIG_FILE_PATH = @"../../Config.txt";
+        private static String SCRIPT_FILE_PATH = @"../../Script.txt";
 
         private SysConfig sysConfig;
 
@@ -36,7 +37,6 @@ namespace PuppetMaster
 
             sysConfig.Semantics = SysConfig.AT_MOST_ONCE;
             sysConfig.LoggingLevel = SysConfig.LIGHT;
-            sysConfig.Routing = SysConfig.PRIMARY;
         }
        
         public void start()
@@ -44,7 +44,9 @@ namespace PuppetMaster
             Console.WriteLine("Registering Puppet Master...");
             registerPM();
             Console.WriteLine("Reading configuration file...");
-            readConfig();
+            readCommands(CONFIG_FILE_PATH);
+            Console.WriteLine("Reading script file...");
+            readCommands(SCRIPT_FILE_PATH);
             Console.WriteLine("Waiting input (exit to finish)");
             manualMode();
             Console.WriteLine("Shutingdown the network...");
@@ -60,7 +62,7 @@ namespace PuppetMaster
             RemotingServices.Marshal(this, SysConfig.PM_NAME, typeof(IRemotePuppetMaster));
         }
 
-        private void readConfig()
+        private void readCommands(string path)
         {
             string line;
             int lineNr = 0;
@@ -69,12 +71,12 @@ namespace PuppetMaster
             file = new StreamReader(CONFIG_FILE_PATH);
 
             while ((line = file.ReadLine()) != null)
-                doConfigLine(line, lineNr++);
+                doCommandLine(line, lineNr++);
 
             Console.WriteLine("Successfully parsed the configuration file");
         }
 
-        private void doConfigLine(String line, int lineNr)
+        private void doCommandLine(String line, int lineNr)
         {
             string[] lineArray = line.Split(' ');
             string option = lineArray[0].ToLower();
@@ -125,7 +127,7 @@ namespace PuppetMaster
             }
             else
             {
-                Console.WriteLine("The command at line " + lineNr + " doesn't exist:" + line);
+                Console.WriteLine("The configuration command at line " + lineNr + " doesn't exist:" + line);
             }
         }
 
@@ -262,12 +264,12 @@ namespace PuppetMaster
 
             int i;
             int len = line.Length;
-            int rep_fact;
+            int rep_fact=-1;
             int op;
             string routing;
             List<string> sources;
             List<string> addresses;
-            Dictionary<string, List<string>> opSpec;
+            List<string> opSpec;
 
             if (!Int32.TryParse(line[0].ToLower().Replace("op", ""), out op))
             {
@@ -278,7 +280,7 @@ namespace PuppetMaster
             {
                 if (line[i].ToLower() == "input_ops")
                 {
-                    sources = doSources(line, i);
+                    sources = line[i + 1].Split(',').ToList();
                 }
                 if (line[i].ToLower() == "rep_fact")
                 {
@@ -290,36 +292,18 @@ namespace PuppetMaster
                 }
                 if (line[i].ToLower() == "address")
                 {
-                    addresses = doAddresses(line, i);
+                    if (line[i+1].Split(',').Length != rep_fact)
+                        throw new ParseException("Invalid number of addresses, it must be as much as rep_fact.");
+                    addresses = line[i+1].Split(',').ToList();
                     operators.Add(op, addresses);
                 }
                 if (line[i].ToLower() == "operator_spec")
                 {
-                    opSpec = doOperatorSpec(line, i);
+                    opSpec = line[i + 1].Split(',').ToList();
                 }
             }
 
             // create operator
-        }
-
-        private List<string> doSources(String[] line, int i)
-        {
-            int len;
-            List<string> sources = new List<string>();
-
-            i++; // i is "input_ops"
-
-            for (len = line.Length; i < len; i++)
-            {
-                if (line[i].ToLower() == "rep_fact" || line[i].ToLower() == "routing" ||
-                    line[i].ToLower() == "address" || line[i].ToLower() == "operator_spec")
-                {
-                    break;
-                }
-                sources.Add(line[i]);
-            }
-
-            return sources;
         }
 
         private int doRepFact(String[] line, int i)
@@ -364,55 +348,6 @@ namespace PuppetMaster
             }
 
             throw new ParseException("Routing");
-        }
-
-        private List<string> doAddresses(String[] line, int i)
-        {
-            int len;
-            List<string> addresses = new List<string>();
-
-            i++; // i is "adress"
-
-            for (len = line.Length; i < len; i++)
-            {
-                if (line[i].ToLower() == "rep_fact" || line[i].ToLower() == "input_ops" ||
-                    line[i].ToLower() == "routing" || line[i].ToLower() == "operator_spec")
-                {
-                    break;
-                }
-                addresses.Add(line[i]);
-            }
-
-            return addresses;
-        }
-
-        private Dictionary<string, List<string>> doOperatorSpec(String[] line, int i)
-        {
-            int len;
-            string operatorType;
-            List<string> operatorParams = new List<string>();
-            Dictionary<string, List<string>> op = new Dictionary<string, List<string>>();
-
-            i++; // i is "adress"
-
-            operatorType = line[i];
-
-            i++;
-
-            for (len = line.Length; i < len; i++)
-            {
-                if (line[i].ToLower() == "rep_fact" || line[i].ToLower() == "input_ops" ||
-                    line[i].ToLower() == "routing" || line[i].ToLower() == "address")
-                {
-                    break;
-                }
-
-                operatorParams.Add(line[i].ToLower());
-            }
-
-            op.Add(operatorType, operatorParams);
-
-            return op;
         }
 
         private void manualMode()

@@ -65,18 +65,5 @@ namespace Shared_Library
             }
         }
 
-        public string Routing
-        {
-            get
-            {
-                return routing;
-            }
-
-            set
-            {
-                routing = value;
-            }
-        }
-
     }
 }

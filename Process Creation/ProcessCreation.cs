@@ -38,7 +38,7 @@ namespace ProcessCreation
         }
 
         #region "Interface Methods"
-        public void startOP(string type, string id, List<string> sources, String rep_fact, String routing, List<String> urls, int port, int field_number)
+        public void startOP(string type, string id, List<string> sources, String rep_fact, String routing, List<String> urls, int port, string op_specs)
         {
             Process process = new Process();
             if (type.Equals(SysConfig.UNIQUE)){
@@ -60,7 +60,11 @@ namespace ProcessCreation
                     else
                         args += s +" ";
                 }
-                args += port + " " + field_number;
+                int aux;
+                if (Int32.TryParse(op_specs,out aux))
+                     args += port + " " + aux;
+                else
+                    throw new OperatorSpecsException("Invalid operator spec, it uses an int as parameter");
                 process.StartInfo.Arguments = args;
             }
 
