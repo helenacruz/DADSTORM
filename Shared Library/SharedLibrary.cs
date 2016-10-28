@@ -10,6 +10,7 @@ namespace Shared_Library
     {
         public const int PM_PORT = 10000;
         public const string PM_NAME = "puppet";
+        public const string PM_URL = "tcp://localhost:10000/puppet";
 
         public const int PCS_PORT = 10001;
         public const string PCS_NAME = "pcreation";

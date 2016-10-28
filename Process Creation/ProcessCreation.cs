@@ -16,8 +16,11 @@ namespace ProcessCreation
     {
         static void Main(string[] args)
         {
+            Console.WriteLine("Starting Process Creation Service...");
             ProcessCreation pc = new ProcessCreation();
             pc.registerPCS();
+            Console.WriteLine("Process Creation Service is running...");
+            Console.ReadLine();
         }
     }
 
@@ -34,47 +37,56 @@ namespace ProcessCreation
         {
             TcpChannel channel = new TcpChannel(SysConfig.PCS_PORT);
             ChannelServices.RegisterChannel(channel, false);
-            RemotingServices.Marshal(this, SysConfig.PCS_NAME, typeof(IRemotePuppetMaster));
+            RemotingServices.Marshal(this, SysConfig.PCS_NAME, typeof(IRemoteProcessCreation));
         }
 
         #region "Interface Methods"
-        public void startOP(string pmurl, string id, List<string> sources, String rep_fact, String routing, List<String> urls, int port, string type, List<string> op_specs)
+        public void createOP(string pmurl, string id, List<string> sources, String rep_fact, String routing, List<String> urls, int port, string type, List<string> op_specs)
         {
+            Console.WriteLine("Creating operator "+id+" ...");
+    
             Process process = new Process();
 
             process.StartInfo.FileName = UNIQUE_OPERATOR_PROCESS;
 
+            int j = 0;
             string args = pmurl + " " + id + " ";
             foreach (string s in sources)
             {
-                if (!sources[sources.Count - 1].Equals(s))
-                    args += s + ",";
-                else
+                if (sources.Count-1 == j)
                     args += s + " ";
+                else
+                    args += s + ",";
+                j += 1;
             }
+            j = 0;
             args += rep_fact + " " + routing + " ";
             foreach (string s in urls)
             {
-                if (!urls[urls.Count - 1].Equals(s))
-                    args += s + ",";
+                if (urls.Count - 1==j)
+                    args += s + " ";
                 else
-                    args += s +" ";
+                    args += s +",";
+                j += 1;
             }
             int aux;
             if (Int32.TryParse(op_specs[0],out aux))
                     args += port + " " + aux + " " + type + " ";
             else
                 throw new OperatorSpecsException("Invalid operator spec, it uses an int as parameter");
+            j = 0;
             foreach (string s in op_specs)
             {
-                if (!op_specs[op_specs.Count - 1].Equals(s))
-                    args += s + ",";
-                else
+                if (op_specs.Count - 1 ==j)
                     args += s + " ";
+                else
+                    args += s + ",";
+                j += 1;
             }
-
+            Console.WriteLine("Using the following parameters: "+args);
             process.StartInfo.Arguments = args;
             process.Start();
+            Console.WriteLine("Operator " + id + " was created.");
         }
         #endregion
     }

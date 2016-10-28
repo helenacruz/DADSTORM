@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Operator
+namespace Shared_Library
 {
-    class CannotAccessRemoteObjectException : Exception
+    public class CannotAccessRemoteObjectException : Exception
     {
         public CannotAccessRemoteObjectException() { }
 
@@ -15,7 +15,7 @@ namespace Operator
         public CannotAccessRemoteObjectException(String message, Exception inner) : base(message, inner) { }
     }
 
-    class WrongOpSpecsException : Exception
+    public class WrongOpSpecsException : Exception
     {
         public WrongOpSpecsException() { }
 
@@ -23,5 +23,4 @@ namespace Operator
 
         public WrongOpSpecsException(String message, Exception inner) : base(message, inner) { }
     }
-
 }

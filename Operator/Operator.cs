@@ -15,13 +15,14 @@ namespace Operator
     {
         static void Main(string[] args)
         {
+            Console.WriteLine("Starting Operator " + args[1] + " ...");
             Operator op = new Operator(args[0],args[1], getList(args[3]), args[4], args[5], getList(args[6]), Int32.Parse(args[7]), args[8] ,getList(args[9]));
             op.registerOP();
             if(args[8] == SysConfig.UNIQUE)
             {
                 op.startUniqueOp();
             }
-
+            Console.WriteLine("Operator " + args[1] + " was started.");
         }
 
         public static List<string> getList(string line)

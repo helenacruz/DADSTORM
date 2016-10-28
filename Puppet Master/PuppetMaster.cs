@@ -25,18 +25,25 @@ namespace PuppetMaster
     {
         private static String CONFIG_FILE_PATH = @"../../../Config.txt";
         private static String SCRIPT_FILE_PATH = @"../../../Script.txt";
+        private string pmurl;
 
         private SysConfig sysConfig;
 
-        private Dictionary<int, List<string>> operators;
+        private Dictionary<int, List<string>> operators_addresses;
+        private Dictionary<int, IRemoteOperator> operators;
+
+        TcpChannel channel;
 
         public PuppetMaster()
         {
             sysConfig = new SysConfig();
-            operators = new Dictionary<int, List<string>>();
+            operators_addresses = new Dictionary<int, List<string>>();
+            operators = new Dictionary<int, IRemoteOperator>();
+
 
             sysConfig.Semantics = SysConfig.AT_MOST_ONCE;
             sysConfig.LoggingLevel = SysConfig.LIGHT;
+
         }
        
         public void start()
@@ -57,9 +64,10 @@ namespace PuppetMaster
 
         private void registerPM()
         {
-            TcpChannel channel = new TcpChannel(SysConfig.PM_PORT);
+            channel = new TcpChannel(SysConfig.PM_PORT);
             ChannelServices.RegisterChannel(channel, false);
             RemotingServices.Marshal(this, SysConfig.PM_NAME, typeof(IRemotePuppetMaster));
+            pmurl = SysConfig.PM_URL;
         }
 
         private void readCommands(string path)
@@ -267,11 +275,12 @@ namespace PuppetMaster
             int i;
             int len = line.Length;
             int rep_fact=1;
-            int op;
-            string routing;
-            List<string> sources;
-            List<string> addresses;
-            List<string> opSpec;
+            int op=-1;
+            string routing = null;
+            List<string> sources=null;
+            List<string> addresses=null;
+            List<string> opSpecs=null;
+            string type = null;
 
             if (!Int32.TryParse(line[0].ToLower().Replace("op", ""), out op))
             {
@@ -297,17 +306,48 @@ namespace PuppetMaster
                     if (line[i + 1].Contains(",") && line[i+1].Split(',').Length != rep_fact)
                         throw new ParseException("Invalid number of addresses at line " + lineNr + ". It must be "+rep_fact+".");
                     addresses = line[i+1].Split(',').ToList();
-                    if (operators.ContainsKey(op))
+                    if (operators_addresses.ContainsKey(op))
                         throw new ParseException("The operator " + op + " at line " + lineNr + " already exists.");
-                    operators.Add(op, addresses);
+                    operators_addresses.Add(op, addresses);
                 }
                 if (line[i].ToLower() == "operator_spec")
                 {
-                    opSpec = line[i + 1].Split(',').ToList();
+                    type = line[i + 1];
+                    opSpecs = line[i + 2].Split(',').ToList();
                 }
             }
 
-            // create operator
+            if (opSpecs == null)
+                throw new WrongOpSpecsException("You need to provide some Operator specification.");
+
+            string[] aux1 = addresses[0].Split('/');
+            string address = aux1[aux1.Length-2];
+            string[] aux2 = address.Split(':');
+
+            string pcs_address = aux1[0];
+            for(int j = 1; j < aux1.Length-1; j++)
+            {
+                if(j==aux1.Length-2)
+                    pcs_address += "/" + aux2[0]+":"+SysConfig.PCS_PORT + "/" + SysConfig.PCS_NAME;
+                else
+                    pcs_address += "/" + aux1[j];
+            }
+
+            doCreateOperator(pmurl, ""+op, sources, ""+rep_fact, routing, addresses,pcs_address, Int32.Parse(aux2[1]), type, opSpecs);
+        }
+
+        private void doCreateOperator(string pmurl, string id, List<string> sources, String rep_fact, String routing, List<String> urls,string pcs_address, int port, string type, List<string> op_specs)
+        {
+            
+            IRemoteProcessCreation pcs = (IRemoteProcessCreation)Activator.GetObject(typeof(IRemoteProcessCreation), pcs_address);
+            if (pcs == null)
+                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + pcs_address);
+            pcs.createOP(pmurl, id, sources, rep_fact, routing, urls, port, type, op_specs);
+
+            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), sources[0]);
+            if (op == null)
+                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + sources[0]);
+            operators.Add(Int32.Parse(id), op);
         }
 
         private int doRepFact(String[] line, int i)
