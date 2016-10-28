@@ -23,8 +23,8 @@ namespace PuppetMaster
 
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
-        private static String CONFIG_FILE_PATH = @"../../Config.txt";
-        private static String SCRIPT_FILE_PATH = @"../../Script.txt";
+        private static String CONFIG_FILE_PATH = @"../../../Config.txt";
+        private static String SCRIPT_FILE_PATH = @"../../../Script.txt";
 
         private SysConfig sysConfig;
 
@@ -68,66 +68,68 @@ namespace PuppetMaster
             int lineNr = 0;
             StreamReader file;
 
-            file = new StreamReader(CONFIG_FILE_PATH);
+            file = new StreamReader(path);
 
             while ((line = file.ReadLine()) != null)
                 doCommandLine(line, lineNr++);
 
-            Console.WriteLine("Successfully parsed the configuration file");
+            Console.WriteLine("Successfully parsed the file.");
         }
 
         private void doCommandLine(String line, int lineNr)
         {
             string[] lineArray = line.Split(' ');
             string option = lineArray[0].ToLower();
-
-            if (option == "semantics")
+            if (line != "")
             {
-                doSemanticsCommand(lineArray, lineNr);
-            }
-            else if (option == "logginglevel")
-            {
-                doLoggingLevelCommand(lineArray, lineNr);
-            }
-            else if (option == "start")
-            {
-                doStartCommand(lineArray, lineNr);
-            }
-            else if (option == "status")
-            {
-                doStatusCommand(lineArray, lineNr);
-            }
-            else if (option == "interval")
-            {
-                doIntervalCommand(lineArray, lineNr);
-            }
-            else if (option == "crash")
-            {
-                doCrashCommand(lineArray, lineNr);
-            }
-            else if (option == "freeze")
-            {
-                doFreezeCommand(lineArray, lineNr);
-            }
-            else if (option == "unfreeze")
-            {
-                doUnfreezeCommand(lineArray, lineNr);
-            }
-            else if (option == "wait")
-            {
-                doWaitCommand(lineArray, lineNr);
-            }
-            else if (option.StartsWith("op"))
-            {
-                doOperatorCommand(lineArray, lineNr);
-            }
-            else if (option.StartsWith("%"))
-            {
-                // do nothing, it's a comment
-            }
-            else
-            {
-                Console.WriteLine("The configuration command at line " + lineNr + " doesn't exist:" + line);
+                if (option == "semantics")
+                {
+                    doSemanticsCommand(lineArray, lineNr);
+                }
+                else if (option == "logginglevel")
+                {
+                    doLoggingLevelCommand(lineArray, lineNr);
+                }
+                else if (option == "start")
+                {
+                    doStartCommand(lineArray, lineNr);
+                }
+                else if (option == "status")
+                {
+                    doStatusCommand(lineArray, lineNr);
+                }
+                else if (option == "interval")
+                {
+                    doIntervalCommand(lineArray, lineNr);
+                }
+                else if (option == "crash")
+                {
+                    doCrashCommand(lineArray, lineNr);
+                }
+                else if (option == "freeze")
+                {
+                    doFreezeCommand(lineArray, lineNr);
+                }
+                else if (option == "unfreeze")
+                {
+                    doUnfreezeCommand(lineArray, lineNr);
+                }
+                else if (option == "wait")
+                {
+                    doWaitCommand(lineArray, lineNr);
+                }
+                else if (option.StartsWith("op"))
+                {
+                    doOperatorCommand(lineArray, lineNr);
+                }
+                else if (option.StartsWith("%"))
+                {
+                    // do nothing, it's a comment
+                }
+                else
+                {
+                    Console.WriteLine("The configuration command at line " + lineNr + " doesn't exist:" + line);
+                }
             }
         }
 
@@ -209,7 +211,7 @@ namespace PuppetMaster
 
         private void doCrashCommand(string[] line, int lineNr)
         {
-            if (line.Length != 2)
+            if (line.Length != 3)
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Crash process_name");
 
@@ -218,7 +220,7 @@ namespace PuppetMaster
 
         private void doFreezeCommand(string[] line, int lineNr)
         {
-            if (line.Length != 2)
+            if (line.Length != 3)
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Freeze process_name");
 
@@ -227,7 +229,7 @@ namespace PuppetMaster
 
         private void doUnfreezeCommand(string[] line, int lineNr)
         {
-            if (line.Length != 2)
+            if (line.Length != 3)
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Unfreeze process_name");
 
@@ -242,7 +244,7 @@ namespace PuppetMaster
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Wait x_ms");
 
-            if (Int32.TryParse(line[2], out ms))
+            if (Int32.TryParse(line[1], out ms))
             {
                 // WAIT COMMAND 
             }
@@ -264,7 +266,7 @@ namespace PuppetMaster
 
             int i;
             int len = line.Length;
-            int rep_fact=-1;
+            int rep_fact=1;
             int op;
             string routing;
             List<string> sources;
@@ -292,9 +294,11 @@ namespace PuppetMaster
                 }
                 if (line[i].ToLower() == "address")
                 {
-                    if (line[i+1].Split(',').Length != rep_fact)
-                        throw new ParseException("Invalid number of addresses, it must be as much as rep_fact.");
+                    if (line[i + 1].Contains(",") && line[i+1].Split(',').Length != rep_fact)
+                        throw new ParseException("Invalid number of addresses at line " + lineNr + ". It must be "+rep_fact+".");
                     addresses = line[i+1].Split(',').ToList();
+                    if (operators.ContainsKey(op))
+                        throw new ParseException("The operator " + op + " at line " + lineNr + " already exists.");
                     operators.Add(op, addresses);
                 }
                 if (line[i].ToLower() == "operator_spec")

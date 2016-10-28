@@ -7,16 +7,6 @@ using System.Threading.Tasks;
 
 namespace Operator
 {
-
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            UniqueOperator op = new UniqueOperator(args[0], Operator.getList(args[1]), args[2], args[3], Operator.getList(args[4]), Int32.Parse(args[5]), Int32.Parse(args[6]));
-        }
-
-    }
-
     class UniqueOperator : Operator
     {
         private int field_number;

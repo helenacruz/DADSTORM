@@ -15,13 +15,13 @@ namespace Operator
         public CannotAccessRemoteObjectException(String message, Exception inner) : base(message, inner) { }
     }
 
-    class OperatorSpecsException : Exception
+    class WrongOpSpecsException : Exception
     {
-        public OperatorSpecsException() { }
+        public WrongOpSpecsException() { }
 
-        public OperatorSpecsException(String message) : base(message) { }
+        public WrongOpSpecsException(String message) : base(message) { }
 
-        public OperatorSpecsException(String message, Exception inner) : base(message, inner) { }
-
+        public WrongOpSpecsException(String message, Exception inner) : base(message, inner) { }
     }
+
 }

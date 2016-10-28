@@ -37,7 +37,6 @@ namespace Shared_Library
 
         private string semantics;
         private string loggingLevel;
-        private string routing;
 
         public string Semantics
         {
