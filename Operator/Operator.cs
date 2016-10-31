@@ -15,14 +15,20 @@ namespace Operator
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Starting Operator " + args[1] + " ...");
-            Operator op = new Operator(args[0],args[1], getList(args[3]), args[4], args[5], getList(args[6]), Int32.Parse(args[7]), args[8] ,getList(args[9]));
+
+            Console.WriteLine("Starting Operator ...");
+            Operator op;
+            if (args.Length==8)
+                op = new Operator(args[0],args[1], getList(args[2]), args[3], args[4], getList(args[5]), Int32.Parse(args[6]), args[7] ,null);
+            else if (args.Length==9)
+                op = new Operator(args[0], args[1], getList(args[2]), args[3], args[4], getList(args[5]), Int32.Parse(args[6]), args[7], getList(args[8]));
+            else
+                throw new WrongOpSpecsException("The Operator must start with 10 arguments");
+
             op.registerOP();
-            if(args[8] == SysConfig.UNIQUE)
-            {
-                op.startUniqueOp();
-            }
             Console.WriteLine("Operator " + args[1] + " was started.");
+            Console.ReadLine();
+
         }
 
         public static List<string> getList(string line)
@@ -34,6 +40,8 @@ namespace Operator
 
     class Operator : MarshalByRefObject, IRemoteOperator
     {
+        private TcpChannel channel;
+
         private string pmurl;
         private string id;
         private List<string> sources;
@@ -60,46 +68,26 @@ namespace Operator
             this.port = port;
             this.op_type = op_type;
             this.op_specs = op_specs;
-
-            sendRequestToSources();
         }
 
         public void registerOP()
         {
-            TcpChannel channel = new TcpChannel(port);
+            channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
             RemotingServices.Marshal(this,id, typeof(IRemoteOperator));
         }
 
-        private void sendRequestToSources()
+        private void sendRequestToSources(List<string> ops_as_sources)
         {
-            foreach (string source in sources)
+            foreach (string source in ops_as_sources)
             {
-                TcpChannel channel = new TcpChannel();
+                channel = new TcpChannel();
                 ChannelServices.RegisterChannel(channel, false);
                 Operator op = (Operator)Activator.GetObject(typeof(Operator), source);
                 if (op == null)
                     throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + source);
                 op.requestTuples(urls);
             }
-        }
-
-        public void startUniqueOp()
-        {
-            if (!sources[0].Contains("tcp://"))
-            {
-                string line;
-                StreamReader file;
-
-                file = new StreamReader(sources[0]);
-
-                while ((line = file.ReadLine()) != null)
-                {
-                    processTupleUniqueOp(line.Split(' ').ToList());
-                }
-            }
-            else
-                Console.WriteLine("Waiting tuples from an operator");
         }
 
         private void processTupleUniqueOp(List<string> tuple)
@@ -128,16 +116,47 @@ namespace Operator
         }
 
         #region "Interface Methods"
+
+        public void startOperator()
+        {
+            List<string> ops_as_sources = new List<string>();
+
+            //start unique operator
+            if (op_type.Equals(SysConfig.UNIQUE))
+            {
+
+                if (!sources[0].Contains("tcp://"))
+                {
+                    string line;
+                    StreamReader file;
+
+                    file = new StreamReader(sources[0]);
+
+                    while ((line = file.ReadLine()) != null)
+                    {
+                        processTupleUniqueOp(line.Split(' ').ToList());
+                    }
+                }
+                else
+                {
+                    ops_as_sources.Add(sources[0]);
+                    sendRequestToSources(ops_as_sources);
+                    Console.WriteLine("Waiting tuples from an operator");
+                }
+            }
+        }
+
         public void requestTuples(List<string> urls)
         {
             receiver_urls = urls;
-            TcpChannel channel = new TcpChannel();
+            channel = new TcpChannel();
             ChannelServices.RegisterChannel(channel, false);
             Operator op = (Operator)Activator.GetObject(typeof(Operator), receiver_urls[0]);
             if (op == null)
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + receiver_urls[0]);
             receiver=op;
         }
+
         public void processTuples(List<List<string>> tuples)
         {
             foreach (List<string>  t in tuples) {

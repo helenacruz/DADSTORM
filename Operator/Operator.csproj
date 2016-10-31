@@ -48,7 +48,6 @@
     <Compile Include="DupOperator.cs" />
     <Compile Include="CountOperator.cs" />
     <Compile Include="FilterOperator.cs" />
-    <Compile Include="UniqueOperator.cs" />
     <Compile Include="Operator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

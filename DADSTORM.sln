@@ -8,6 +8,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared Library", "Shared Library\Shared Library.csproj", "{253D4AB9-AEDA-4232-BA7C-6526F864A18E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Process Creation", "Process Creation\Process Creation.csproj", "{9751D380-3278-4C32-84CF-7A533157766C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1ACB4250-310A-4AE8-B1AA-72BB1BA719F0} = {1ACB4250-310A-4AE8-B1AA-72BB1BA719F0}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Puppet Master", "Puppet Master\Puppet Master.csproj", "{DB90A0DC-25CF-4ADC-B066-987E720D6E68}"
 EndProject

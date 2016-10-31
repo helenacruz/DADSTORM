@@ -69,20 +69,20 @@ namespace ProcessCreation
                     args += s +",";
                 j += 1;
             }
-            int aux;
-            if (Int32.TryParse(op_specs[0],out aux))
-                    args += port + " " + aux + " " + type + " ";
-            else
-                throw new OperatorSpecsException("Invalid operator spec, it uses an int as parameter");
+            args += port + " " + type + " ";
+
             j = 0;
-            foreach (string s in op_specs)
-            {
-                if (op_specs.Count - 1 ==j)
-                    args += s + " ";
-                else
-                    args += s + ",";
-                j += 1;
+            if (op_specs!=null) { 
+                foreach (string s in op_specs)
+                {
+                    if (op_specs.Count - 1 ==j)
+                        args += s + " ";
+                    else
+                        args += s + ",";
+                    j += 1;
+                }
             }
+
             Console.WriteLine("Using the following parameters: "+args);
             process.StartInfo.Arguments = args;
             process.Start();

@@ -19,6 +19,7 @@ namespace Shared_Library
 
     public interface IRemoteOperator
     {
+        void startOperator();
         void requestTuples(List<string> urls);
         void processTuples(List<List<string>> tuples);
     }

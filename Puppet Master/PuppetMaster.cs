@@ -313,12 +313,19 @@ namespace PuppetMaster
                 if (line[i].ToLower() == "operator_spec")
                 {
                     type = line[i + 1];
-                    opSpecs = line[i + 2].Split(',').ToList();
+                    if (line[i + 1].Contains(","))
+                        opSpecs = line[i + 2].Split(',').ToList();
+                    else
+                    {
+                        List<string> aux = new List<String>();
+                        if (i + 2 < line.Length)
+                            aux.Add(line[i + 2]);
+                        else
+                            aux = null;
+                        opSpecs = aux;
+                    }
                 }
             }
-
-            if (opSpecs == null)
-                throw new WrongOpSpecsException("You need to provide some Operator specification.");
 
             string[] aux1 = addresses[0].Split('/');
             string address = aux1[aux1.Length-2];
@@ -344,7 +351,7 @@ namespace PuppetMaster
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + pcs_address);
             pcs.createOP(pmurl, id, sources, rep_fact, routing, urls, port, type, op_specs);
 
-            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), sources[0]);
+            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), urls[0]);
             if (op == null)
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + sources[0]);
             operators.Add(Int32.Parse(id), op);
