@@ -72,9 +72,11 @@ namespace Operator
 
         public void registerOP()
         {
+            Console.WriteLine("Registering Operator at "+ urls[0]);
             channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
-            RemotingServices.Marshal(this,id, typeof(IRemoteOperator));
+            RemotingServices.Marshal(this,urls[0], typeof(IRemoteOperator));
+            
         }
 
         private void sendRequestToSources(List<string> ops_as_sources)
@@ -119,6 +121,8 @@ namespace Operator
 
         public void startOperator()
         {
+            Console.WriteLine("Operator started processing...");
+
             List<string> ops_as_sources = new List<string>();
 
             //start unique operator

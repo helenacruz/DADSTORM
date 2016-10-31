@@ -185,7 +185,16 @@ namespace PuppetMaster
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Start operator_id");
 
-            // START COMMAND
+            int opId;
+            if (!Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId))
+            {
+                throw new ParseException("Invalid operator id. Must be OPn, where n is an integer.");
+            }
+            if (opId < operators.Count)
+            {
+                IRemoteOperator op = operators[opId];
+                op.startOperator();
+            }
         }
 
         private void doStatusCommand(string[] line, int lineNr)
@@ -291,7 +300,7 @@ namespace PuppetMaster
             {
                 if (line[i].ToLower() == "input_ops")
                 {
-                    sources = line[i + 1].Split(',').ToList();
+                    sources = doInputOps(line, i);
                 }
                 if (line[i].ToLower() == "rep_fact")
                 {
@@ -353,8 +362,32 @@ namespace PuppetMaster
 
             IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), urls[0]);
             if (op == null)
-                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + sources[0]);
+                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + urls[0]);
             operators.Add(Int32.Parse(id), op);
+        }
+
+        private List<string> doInputOps(String[] line, int i)
+        {
+            i++; // i is "sources"
+
+            List<string> sources = new List<string>();
+            List<string> sources_processed = new List<string>();
+            sources = line[i ].Split(',').ToList();
+            foreach (string s in sources)
+            {
+                if (s.ToLower().Contains("op"))
+                {
+                    int op;
+                    if (!Int32.TryParse(s.ToLower().Replace("op", ""), out op))
+                    {
+                        throw new ParseException("Invalid operator id. Must be OPn, where n is an integer.");
+                    }
+                    sources_processed.Add(operators_addresses[op][0]);
+                }
+                else
+                    sources_processed.Add(s);
+            }
+            return sources_processed;
         }
 
         private int doRepFact(String[] line, int i)
