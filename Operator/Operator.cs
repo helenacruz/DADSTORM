@@ -75,7 +75,7 @@ namespace Operator
             Console.WriteLine("Registering Operator at "+ urls[0]);
             channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
-            RemotingServices.Marshal(this,urls[0], typeof(IRemoteOperator));
+            RemotingServices.Marshal(this,"op", typeof(IRemoteOperator));
             
         }
 
