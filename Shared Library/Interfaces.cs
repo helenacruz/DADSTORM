@@ -9,7 +9,7 @@ namespace Shared_Library
 
     public interface IRemoteProcessCreation
     {
-        void createOP(string pmurl, string id, List<string> sources, String rep_fact, String routing, List<String> urls, int port, string type, List<string> op_specs);
+        void createOP(string pmurl, string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, int port);
     }
 
     public interface IRemotePuppetMaster
@@ -19,9 +19,15 @@ namespace Shared_Library
 
     public interface IRemoteOperator
     {
+        void SendOperator(byte[] code, string className, string method, IList<string> op_specs);
         void startOperator();
-        void requestTuples(List<string> urls);
-        void processTuples(List<List<string>> tuples);
+        void requestTuples(IList<string> urls);
+        void processTuples(IList<string> tuples);
+    }
+
+    public interface IOperator
+    {
+        IList<string> CustomOperation(IList<string> l1, IList<string> l2, IList<string> op_specs);
     }
 
 }

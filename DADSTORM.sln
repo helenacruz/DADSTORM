@@ -13,6 +13,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Process Creation", "Process
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Puppet Master", "Puppet Master\Puppet Master.csproj", "{DB90A0DC-25CF-4ADC-B066-987E720D6E68}"
+	ProjectSection(ProjectDependencies) = postProject
+		{3504F230-4781-4159-98DC-430847E8FA5D} = {3504F230-4781-4159-98DC-430847E8FA5D}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibOperator", "LibOperator\LibOperator.csproj", "{3504F230-4781-4159-98DC-430847E8FA5D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -36,6 +41,10 @@ Global
 		{DB90A0DC-25CF-4ADC-B066-987E720D6E68}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DB90A0DC-25CF-4ADC-B066-987E720D6E68}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DB90A0DC-25CF-4ADC-B066-987E720D6E68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3504F230-4781-4159-98DC-430847E8FA5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3504F230-4781-4159-98DC-430847E8FA5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3504F230-4781-4159-98DC-430847E8FA5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3504F230-4781-4159-98DC-430847E8FA5D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

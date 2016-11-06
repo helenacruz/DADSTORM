@@ -30,7 +30,7 @@ namespace Shared_Library
         public const string HASHING = "hashing";
 
         // Commands
-        public const string UNIQUE = "unique";
+        public const string UNIQUE = "uniq";
         public const string COUNT = "count";
         public const string DUP = "dup";
         public const string FILTER = "filter";

@@ -41,9 +41,9 @@ namespace ProcessCreation
         }
 
         #region "Interface Methods"
-        public void createOP(string pmurl, string id, List<string> sources, String rep_fact, String routing, List<String> urls, int port, string type, List<string> op_specs)
+        public void createOP(string pmurl, string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, int port)
         {
-            Console.WriteLine("Creating operator "+id+" ...");
+            Console.WriteLine("Creating operator "+id+" at "+urls[0]);
     
             Process process = new Process();
 
@@ -69,19 +69,7 @@ namespace ProcessCreation
                     args += s +",";
                 j += 1;
             }
-            args += port + " " + type + " ";
-
-            j = 0;
-            if (op_specs!=null) { 
-                foreach (string s in op_specs)
-                {
-                    if (op_specs.Count - 1 ==j)
-                        args += s + " ";
-                    else
-                        args += s + ",";
-                    j += 1;
-                }
-            }
+            args += port;
 
             Console.WriteLine("Using the following parameters: "+args);
             process.StartInfo.Arguments = args;

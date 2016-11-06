@@ -8,6 +8,7 @@ using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting;
 using Shared_Library;
 using System.IO;
+using System.Reflection;
 
 namespace Operator
 {
@@ -18,12 +19,10 @@ namespace Operator
 
             Console.WriteLine("Starting Operator ...");
             Operator op;
-            if (args.Length==8)
-                op = new Operator(args[0],args[1], getList(args[2]), args[3], args[4], getList(args[5]), Int32.Parse(args[6]), args[7] ,null);
-            else if (args.Length==9)
-                op = new Operator(args[0], args[1], getList(args[2]), args[3], args[4], getList(args[5]), Int32.Parse(args[6]), args[7], getList(args[8]));
+            if (args.Length==7)
+                op = new Operator(args[0],args[1], getList(args[2]), args[3], args[4], getList(args[5]), Int32.Parse(args[6]));
             else
-                throw new WrongOpSpecsException("The Operator must start with 10 arguments");
+                throw new WrongOpSpecsException("The Operator must start with 7 arguments");
 
             op.registerOP();
             Console.WriteLine("Operator " + args[1] + " was started.");
@@ -43,31 +42,31 @@ namespace Operator
         private TcpChannel channel;
 
         private string pmurl;
-        private string id;
-        private List<string> sources;
-        private String rep_fact;
+        private string opName;
+        private IList<string> sources;
+        private String repFact;
         private String routing;
-        private List<String> urls;
+        private IList<String> urls;
         private int port;
-        private string op_type;
-        List<string> op_specs;
+        private byte[] opTypeCode;
+        private string className;
+        private string method;
+        private IList<string> opSpecs;
 
-        List<List<string>> tuples_queue;
-        List<List<string>> not_sent_tuples;
+        List<List<string>> tuplesQueue;
+        List<List<string>> notSentTuples;
 
-        private List<string> receiver_urls=null;
+        private IList<string> receiverUrls=null;
         private Operator receiver=null;
 
-        public Operator(string pmurl, string id, List<string> sources, String rep_fact, String routing, List<String> urls, int port, string op_type, List<string> op_specs) {
+        public Operator(string pmurl, string opName, List<string> sources, String repFact, String routing, List<String> urls, int port) {
             this.pmurl = pmurl;
-            this.id = id;
+            this.opName = opName;
             this.sources = sources;
-            this.rep_fact = rep_fact;
+            this.repFact = repFact;
             this.routing = routing;
             this.urls = urls;
             this.port = port;
-            this.op_type = op_type;
-            this.op_specs = op_specs;
         }
 
         public void registerOP()
@@ -75,13 +74,13 @@ namespace Operator
             Console.WriteLine("Registering Operator at "+ urls[0]);
             channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
-            RemotingServices.Marshal(this,"op", typeof(IRemoteOperator));
+            RemotingServices.Marshal(this,opName, typeof(IRemoteOperator));
             
         }
 
-        private void sendRequestToSources(List<string> ops_as_sources)
+        private void sendRequestToSources(List<string> opsAsSources)
         {
-            foreach (string source in ops_as_sources)
+            foreach (string source in opsAsSources)
             {
                 channel = new TcpChannel();
                 ChannelServices.RegisterChannel(channel, false);
@@ -92,80 +91,98 @@ namespace Operator
             }
         }
 
-        private void processTupleUniqueOp(List<string> tuple)
+        private bool processTuples(List<string> tuples)
         {
-            int field_number;
-            if (!Int32.TryParse(op_specs[0], out field_number))
-                throw new WrongOpSpecsException("Unique Operator Specification need to be an integer.");
-
-            foreach (List<string> unique_tuple in tuples_queue)
-                if (!tuple[field_number - 1].Equals(unique_tuple[field_number - 1]))
+            Assembly assembly = Assembly.Load(this.opTypeCode);
+            foreach (Type type in assembly.GetTypes())
+            {
+                if (type.IsClass == true)
                 {
-                    tuples_queue.Add(tuple);
-
-                    if (receiver != null)
+                    if (type.FullName.EndsWith("." + this.className))
                     {
-                        List<List<string>> to_fix = new List<List<String>>();
-                        to_fix.Add(tuple);
-                        receiver.processTuples(to_fix);
+                        object ClassObj = Activator.CreateInstance(type);
+                        object[] args = new object[] { tuples };
+                        object resultObject = type.InvokeMember(this.method,
+                          BindingFlags.Default | BindingFlags.InvokeMethod,
+                               null,
+                               ClassObj,
+                               args);
+                        IList<string> result = (IList<string>)resultObject;
+                        Console.WriteLine("Map call result was: ");
+                        foreach (string tuple in result)
+                            Console.WriteLine(tuple);
+                        if (receiver != null)
+                            receiver.processTuples(result);
+                        return true;
                     }
-
-                    string aux = "";
-                    foreach (string s in tuple)
-                        aux += s;
-                    Console.WriteLine(tuple);
                 }
+            }
+            throw (new System.Exception("could not invoke method"));                
         }
 
         #region "Interface Methods"
 
+       
+        public void SendOperator(byte[] code, string className, string method, IList<string> opSpecs)
+        {
+            this.opTypeCode = code;
+            this.className = className;
+            this.method = method;
+            this.opSpecs = opSpecs;   
+    }
+
+
         public void startOperator()
         {
-            Console.WriteLine("Operator started processing...");
-
-            List<string> ops_as_sources = new List<string>();
-
-            //start unique operator
-            if (op_type.Equals(SysConfig.UNIQUE))
+            if (opTypeCode != null)
             {
+                Console.WriteLine("Operator started processing...");
 
-                if (!sources[0].Contains("tcp://"))
+                List<string> ops_as_sources = new List<string>();
+
+                //start unique operator
+                if (className.Equals(SysConfig.UNIQUE))
                 {
-                    string line;
-                    StreamReader file;
 
-                    file = new StreamReader(sources[0]);
-
-                    while ((line = file.ReadLine()) != null)
+                    if (!sources[0].Contains("tcp://"))
                     {
-                        processTupleUniqueOp(line.Split(' ').ToList());
+                        string line;
+                        StreamReader file;
+
+                        file = new StreamReader(sources[0]);
+                        List<string> tuples = new List<string>();
+                        while ((line = file.ReadLine()) != null)
+                        {
+                            tuples.Add(line);
+                        }
+                        processTuples(tuples);
+                    }
+                    else
+                    {
+                        ops_as_sources.Add(sources[0]);
+                        sendRequestToSources(ops_as_sources);
+                        Console.WriteLine("Waiting tuples from an operator");
                     }
                 }
-                else
-                {
-                    ops_as_sources.Add(sources[0]);
-                    sendRequestToSources(ops_as_sources);
-                    Console.WriteLine("Waiting tuples from an operator");
-                }
             }
+            else
+                throw new OpByteCodesNotReceivedException(this);
         }
 
-        public void requestTuples(List<string> urls)
+        public void requestTuples(IList<string> urls)
         {
-            receiver_urls = urls;
+            receiverUrls = urls;
             channel = new TcpChannel();
             ChannelServices.RegisterChannel(channel, false);
-            Operator op = (Operator)Activator.GetObject(typeof(Operator), receiver_urls[0]);
+            Operator op = (Operator)Activator.GetObject(typeof(Operator), receiverUrls[0]);
             if (op == null)
-                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + receiver_urls[0]);
+                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + receiverUrls[0]);
             receiver=op;
         }
 
-        public void processTuples(List<List<string>> tuples)
+        public void processTuples(IList<string> tuples)
         {
-            foreach (List<string>  t in tuples) {
-                processTupleUniqueOp(t);
-            }
+                processTuples(tuples);
         }
         #endregion
     }
