@@ -167,7 +167,7 @@ namespace Operator
                 }
             }
             else
-                throw new OpByteCodesNotReceivedException(this);
+                throw new OpByteCodesNotReceivedException("The operator " + opName + " at " + urls[0] + "not received operator byte codes");
         }
 
         public void requestTuples(IList<string> urls)

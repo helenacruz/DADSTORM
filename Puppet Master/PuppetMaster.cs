@@ -196,7 +196,18 @@ namespace PuppetMaster
             if (opId <= operators.Count)
             {
                 IRemoteOperator op = operators[opId];
-                op.startOperator();
+                try
+                {
+                    op.startOperator();
+                }
+                catch (WrongOpSpecsException e) 
+                {
+                    Console.WriteLine(e.msg);
+                }
+                catch (OpByteCodesNotReceivedException e)
+                {
+                    Console.WriteLine(e.msg);
+                }
             }
         }
 

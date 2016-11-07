@@ -15,36 +15,51 @@ namespace Shared_Library
         public CannotAccessRemoteObjectException(String message, Exception inner) : base(message, inner) { }
     }
 
-    public class WrongOpSpecsException : Exception
+    [Serializable]
+    public class WrongOpSpecsException : ApplicationException
     {
-        public WrongOpSpecsException() { }
+        public string msg;
 
-        public WrongOpSpecsException(String message) : base(message) { }
+        public WrongOpSpecsException(String msg)
+        {
+            this.msg = msg;
+        }
 
-        public WrongOpSpecsException(String message, Exception inner) : base(message, inner) { }
+        public WrongOpSpecsException(System.Runtime.Serialization.SerializationInfo info,
+            System.Runtime.Serialization.StreamingContext context)
+            : base(info, context)
+        {
+            msg = (string)info.GetValue("msg", typeof(string));
+        }
+
+        public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("msg", msg);
+        }
     }
 
     [Serializable]
     public class OpByteCodesNotReceivedException : ApplicationException
     {
-        public IRemoteOperator iOp;
+        public string  msg;
 
-        public OpByteCodesNotReceivedException(IRemoteOperator iOp)
+        public OpByteCodesNotReceivedException(string msg)
         {
-            this.iOp = iOp;
+            this.msg = msg;
         }
 
         public OpByteCodesNotReceivedException(System.Runtime.Serialization.SerializationInfo info,
             System.Runtime.Serialization.StreamingContext context)
             : base(info, context)
         {
-            iOp = (IRemoteOperator)info.GetValue("iOp", typeof(IRemoteOperator));
+            msg = (string)info.GetValue("msg", typeof(string));
         }
 
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
         {
             base.GetObjectData(info, context);
-            info.AddValue("iOp", iOp);
+            info.AddValue("msg", msg);
         }
     }
       
