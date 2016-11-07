@@ -17,7 +17,7 @@ namespace LibOperator
                 throw new WrongOpSpecsException("Filter Operator Specification needs 3 arguments.");
             if (!Int32.TryParse(opSpecs[0], out field_number))
                 throw new WrongOpSpecsException("Filter Operator Specification need to be an integer in first field.");
-            if(opSpecs[1]!="=" && opSpecs[1] != "<" && opSpecs[1] != ">")
+            if(!opSpecs[1].Equals("=") && !opSpecs[1].Equals("<") && !opSpecs[1].Equals(">"))
                 throw new WrongOpSpecsException("Filter Operator Specification need to be = or < or >.");
 
             foreach (string candidat_tuple in candidatTuples)

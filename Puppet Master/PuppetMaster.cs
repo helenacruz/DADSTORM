@@ -338,8 +338,10 @@ namespace PuppetMaster
                     type = line[i + 1];
                     if (i + 2 == line.Length)
                         opSpecs = null;
-                    else if(line[i + 2].Contains(","))
+                    else if (line[i + 2].Contains(","))
+                    {
                         opSpecs = line[i + 2].Split(',').ToList();
+                    }
                     else
                     {
                         List<string> aux = new List<String>();

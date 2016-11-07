@@ -154,7 +154,7 @@ namespace Operator
                         while ((line = file.ReadLine()) != null)
                         {
                             if(!line.StartsWith("%"))
-                                tuples.Add(line);
+                                tuples.Add(removeWhiteSpaces(line));
                         }
                         processTuples(tuples);
                     }
@@ -168,6 +168,23 @@ namespace Operator
             }
             else
                 throw new OpByteCodesNotReceivedException("The operator " + opName + " at " + urls[0] + "not received operator byte codes");
+        }
+
+        public string removeWhiteSpaces(string s)
+        {
+            bool aceptingSpaces=false;
+            string result = "";
+            foreach  (char c in s)
+            {
+                if (c == '\"')
+                {
+                    s += c;
+                    aceptingSpaces = !aceptingSpaces;
+                }
+                if ((c == ' ' && aceptingSpaces) || c!=' ')
+                    result += c;
+            }
+            return result;
         }
 
         public void requestTuples(IList<string> urls)

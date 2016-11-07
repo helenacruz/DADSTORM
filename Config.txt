@@ -19,6 +19,6 @@ LoggingLevel light
 
 OP1 input_ops tweeters.dat rep_fact 2 routing hashing(1) address tcp://localhost:11005/op,tcp://localhost:11000/op operator_spec UNIQ 3
 
-OP2 input_ops OP1 rep_fact 2 routing random address tcp://localhost:11003/op,tcp://localhost:11004/op operator_spec FILTER 3,=, "www.tecnico.ulisboa.pt" 
+OP2 input_ops OP1 rep_fact 2 routing random address tcp://localhost:11003/op,tcp://localhost:11004/op operator_spec FILTER 3,=,"www.tecnico.ulisboa.pt"
 
 %%OP4 input_ops OP3 rep_fact 1 routing primary address tcp://localhost:11006/op operator_spec COUNT
