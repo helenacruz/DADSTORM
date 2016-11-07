@@ -62,7 +62,7 @@ namespace PuppetMaster
             Console.WriteLine("Shutingdown the network...");
             shutDownAll();
             Console.WriteLine("All processes was terminated.");
-
+            Console.ReadLine();
         }
 
         private void registerPM()
@@ -193,7 +193,7 @@ namespace PuppetMaster
             {
                 throw new ParseException("Invalid operator id. Must be OPn, where n is an integer.");
             }
-            if (opId < operators.Count)
+            if (opId <= operators.Count)
             {
                 IRemoteOperator op = operators[opId];
                 op.startOperator();
@@ -325,15 +325,14 @@ namespace PuppetMaster
                 if (line[i].ToLower() == "operator_spec")
                 {
                     type = line[i + 1];
-                    if (line[i + 1].Contains(","))
+                    if (i + 2 == line.Length)
+                        opSpecs = null;
+                    else if(line[i + 2].Contains(","))
                         opSpecs = line[i + 2].Split(',').ToList();
                     else
                     {
                         List<string> aux = new List<String>();
-                        if (i + 2 < line.Length)
-                            aux.Add(line[i + 2]);
-                        else
-                            aux = null;
+                        aux.Add(line[i + 2]);
                         opSpecs = aux;
                     }
                 }
@@ -368,13 +367,18 @@ namespace PuppetMaster
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + urls[0]);
 
             byte[] code = File.ReadAllBytes(LIB_OPERATORS_PATH);
-            Console.WriteLine(type);
 
             if (type.ToLower().Equals(SysConfig.UNIQUE))
-            {
-                Console.WriteLine("<<<<<<");
                 op.SendOperator(code, "UniqueOperator", DEFAULT_METHOD, op_specs);
-            }
+            else if(type.ToLower().Equals(SysConfig.COUNT))
+                op.SendOperator(code, "CountOperator", DEFAULT_METHOD, op_specs);
+            else if (type.ToLower().Equals(SysConfig.FILTER))
+                op.SendOperator(code, "FilterOperator", DEFAULT_METHOD, op_specs);
+            else if (type.ToLower().Equals(SysConfig.DUP))
+                op.SendOperator(code, "DupOperator", DEFAULT_METHOD, op_specs);
+            else if (type.ToLower().Equals(SysConfig.CUSTOM))
+                op.SendOperator(code, "CustomOperator", DEFAULT_METHOD, op_specs);
+
             operators.Add(Int32.Parse(id), op);
         }
 

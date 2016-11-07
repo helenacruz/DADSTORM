@@ -9,24 +9,44 @@ namespace LibOperator
 {
     public class UniqueOperator : IOperator
     {
-        public IList<string> CustomOperation(IList<string> unique_tuples, IList<string> candidat_tuples,IList<string> op_specs)
+        private IList<string> uniqueTuples = new List<string>();
+
+        public IList<string> CustomOperation(IList<string> candidatTuples,IList<string> opSpecs)
         {
+            IList<string> result = new List<string>();
             int field_number;
-            if (!Int32.TryParse(op_specs[0], out field_number))
+            if (!Int32.TryParse(opSpecs[0], out field_number))
                 throw new WrongOpSpecsException("Unique Operator Specification need to be an integer.");
-
-            foreach (string candidat_tuple in candidat_tuples)
+            foreach (string candidat_tuple in candidatTuples)
             {
-                foreach(string unique_tuple in unique_tuples) { 
-                    string[] splited_queue = unique_tuple.Split(',');
-                    string[] splited_candidat = candidat_tuple.Split(',');
+                if (uniqueTuples.Count == 0)
+                {
+                    result.Add(candidat_tuple);
+                    uniqueTuples.Add(candidat_tuple);
+                }
+                else
+                {
+                    bool unique = true;
+                    for (int i=0; i< uniqueTuples.Count;i++)
+                    {
+                        string[] splited_queue = uniqueTuples[i].Split(',');
+                        string[] splited_candidat = candidat_tuple.Split(',');
 
-                    if (!splited_candidat[field_number - 1].Equals(splited_queue[field_number - 1]))
-                            unique_tuples.Add(unique_tuple);
-                         
+                        if (splited_candidat[field_number - 1].Equals(splited_queue[field_number - 1]))
+                        {
+                            unique = false;
+                            break;
+                        }
+                    }
+                    if (unique)
+                    {
+                        result.Add(candidat_tuple);
+                        uniqueTuples.Add(candidat_tuple);
+                    }
                 }
             }
-            return unique_tuples;
+
+            return result;
         }
 
     }

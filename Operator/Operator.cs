@@ -49,15 +49,14 @@ namespace Operator
         private IList<String> urls;
         private int port;
         private byte[] opTypeCode;
-        private string className;
+        private string className=null;
         private string method;
         private IList<string> opSpecs;
 
-        List<List<string>> tuplesQueue;
-        List<List<string>> notSentTuples;
+        private IList<string> notSentTuples = new List<string>();
 
         private IList<string> receiverUrls=null;
-        private Operator receiver=null;
+        private IRemoteOperator receiver=null;
 
         public Operator(string pmurl, string opName, List<string> sources, String repFact, String routing, List<String> urls, int port) {
             this.pmurl = pmurl;
@@ -83,15 +82,14 @@ namespace Operator
             foreach (string source in opsAsSources)
             {
                 channel = new TcpChannel();
-                ChannelServices.RegisterChannel(channel, false);
-                Operator op = (Operator)Activator.GetObject(typeof(Operator), source);
+                IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), source);
                 if (op == null)
                     throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + source);
                 op.requestTuples(urls);
             }
         }
 
-        private bool processTuples(List<string> tuples)
+        private bool processTuples(IList<string> tuples)
         {
             Assembly assembly = Assembly.Load(this.opTypeCode);
             foreach (Type type in assembly.GetTypes())
@@ -101,18 +99,22 @@ namespace Operator
                     if (type.FullName.EndsWith("." + this.className))
                     {
                         object ClassObj = Activator.CreateInstance(type);
-                        object[] args = new object[] { tuples };
+                        object[] args = new object[] { tuples,this.opSpecs };
                         object resultObject = type.InvokeMember(this.method,
                           BindingFlags.Default | BindingFlags.InvokeMethod,
                                null,
                                ClassObj,
                                args);
                         IList<string> result = (IList<string>)resultObject;
-                        Console.WriteLine("Map call result was: ");
-                        foreach (string tuple in result)
+                        foreach (string tuple in result) 
                             Console.WriteLine(tuple);
-                        if (receiver != null)
-                            receiver.processTuples(result);
+                        if (receiver == null)
+                        {
+                            foreach (string tuple in result)
+                                notSentTuples.Add(tuple);
+                        }
+                        else
+                            receiver.doProcessTuples(result);
                         return true;
                     }
                 }
@@ -141,19 +143,18 @@ namespace Operator
                 List<string> ops_as_sources = new List<string>();
 
                 //start unique operator
-                if (className.Equals(SysConfig.UNIQUE))
+                if (className.Equals("UniqueOperator")|| className.Equals("FilterOperator"))
                 {
-
                     if (!sources[0].Contains("tcp://"))
                     {
                         string line;
                         StreamReader file;
-
-                        file = new StreamReader(sources[0]);
+                        file = new StreamReader("../../../Input/"+sources[0]);
                         List<string> tuples = new List<string>();
                         while ((line = file.ReadLine()) != null)
                         {
-                            tuples.Add(line);
+                            if(!line.StartsWith("%"))
+                                tuples.Add(line);
                         }
                         processTuples(tuples);
                     }
@@ -173,16 +174,16 @@ namespace Operator
         {
             receiverUrls = urls;
             channel = new TcpChannel();
-            ChannelServices.RegisterChannel(channel, false);
-            Operator op = (Operator)Activator.GetObject(typeof(Operator), receiverUrls[0]);
+            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), receiverUrls[0]);
             if (op == null)
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + receiverUrls[0]);
             receiver=op;
+            receiver.doProcessTuples(notSentTuples);
         }
 
-        public void processTuples(IList<string> tuples)
+        public void doProcessTuples(IList<string> tuples)
         {
-                processTuples(tuples);
+            processTuples(tuples);
         }
         #endregion
     }

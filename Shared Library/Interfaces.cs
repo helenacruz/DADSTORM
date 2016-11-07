@@ -22,12 +22,12 @@ namespace Shared_Library
         void SendOperator(byte[] code, string className, string method, IList<string> op_specs);
         void startOperator();
         void requestTuples(IList<string> urls);
-        void processTuples(IList<string> tuples);
+        void doProcessTuples(IList<string> tuples);
     }
 
     public interface IOperator
     {
-        IList<string> CustomOperation(IList<string> l1, IList<string> l2, IList<string> op_specs);
+        IList<string> CustomOperation(IList<string> tuples, IList<string> op_specs);
     }
 
 }
