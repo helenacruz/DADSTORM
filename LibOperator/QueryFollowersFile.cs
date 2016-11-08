@@ -30,7 +30,7 @@ namespace LibOperator
                 {
                     string[] splited_follower = followers_tuple.Split(',');
                     if (splited_candidat[1].Equals(splited_follower[0]))
-                        result.Add(candidat_tuple);
+                        result.Add(followers_tuple);
                 }
             }
                 return result;
