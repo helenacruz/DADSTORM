@@ -379,18 +379,26 @@ namespace PuppetMaster
             if (op == null)
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + urls[0]);
 
-            byte[] code = File.ReadAllBytes(LIB_OPERATORS_PATH);
-
-            if (type.ToLower().Equals(SysConfig.UNIQUE))
-                op.SendOperator(code, "UniqueOperator", DEFAULT_METHOD, op_specs);
-            else if(type.ToLower().Equals(SysConfig.COUNT))
-                op.SendOperator(code, "CountOperator", DEFAULT_METHOD, op_specs);
-            else if (type.ToLower().Equals(SysConfig.FILTER))
-                op.SendOperator(code, "FilterOperator", DEFAULT_METHOD, op_specs);
-            else if (type.ToLower().Equals(SysConfig.DUP))
-                op.SendOperator(code, "DupOperator", DEFAULT_METHOD, op_specs);
-            else if (type.ToLower().Equals(SysConfig.CUSTOM))
-                op.SendOperator(code, "CustomOperator", DEFAULT_METHOD, op_specs);
+            byte[] code;
+            if (type.ToLower().Equals(SysConfig.CUSTOM))
+            {
+                if (op_specs.Count != 3 || op_specs[0].Equals("") || op_specs[1].Equals("") || op_specs[2].Equals(""))
+                    throw new WrongOpSpecsException("Custom Operator Specification needs 3 arguments.");
+                code = File.ReadAllBytes(op_specs[0]);
+                op.SendOperator(code, op_specs[1], op_specs[2], null);
+            }
+            else
+            {
+                code = File.ReadAllBytes(LIB_OPERATORS_PATH);
+                if (type.ToLower().Equals(SysConfig.UNIQUE))
+                    op.SendOperator(code, "UniqueOperator", DEFAULT_METHOD, op_specs);
+                else if (type.ToLower().Equals(SysConfig.COUNT))
+                    op.SendOperator(code, "CountOperator", DEFAULT_METHOD, op_specs);
+                else if (type.ToLower().Equals(SysConfig.FILTER))
+                    op.SendOperator(code, "FilterOperator", DEFAULT_METHOD, op_specs);
+                else if (type.ToLower().Equals(SysConfig.DUP))
+                    op.SendOperator(code, "DupOperator", DEFAULT_METHOD, op_specs);
+            }
 
             operators.Add(Int32.Parse(id), op);
         }

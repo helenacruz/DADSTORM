@@ -99,12 +99,12 @@ namespace Operator
                     if (type.FullName.EndsWith("." + this.className))
                     {
                         object ClassObj = Activator.CreateInstance(type);
-                        object[] args = new object[] { tuples,this.opSpecs };
-                        object resultObject = type.InvokeMember(this.method,
-                          BindingFlags.Default | BindingFlags.InvokeMethod,
-                               null,
-                               ClassObj,
-                               args);
+                        object[] args;
+                        if (className.Equals("UniqueOperator") || className.Equals("FilterOperator") || className.Equals("CountOperator") || className.Equals("DupOperator"))
+                            args = new object[] { tuples,this.opSpecs };
+                        else
+                            args = new object[] { tuples };
+                        object resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod,null, ClassObj, args);
                         IList<string> result = (IList<string>)resultObject;
                         foreach (string tuple in result) 
                             Console.WriteLine(tuple);
@@ -142,35 +142,32 @@ namespace Operator
 
                 List<string> ops_as_sources = new List<string>();
 
-                //start unique operator
-                if (className.Equals("UniqueOperator")|| className.Equals("FilterOperator"))
+                if (!sources[0].Contains("tcp://"))
                 {
-                    if (!sources[0].Contains("tcp://"))
+                    string line;
+                    StreamReader file;
+                    file = new StreamReader("../../../Input/"+sources[0]);
+                    List<string> tuples = new List<string>();
+                    while ((line = file.ReadLine()) != null)
                     {
-                        string line;
-                        StreamReader file;
-                        file = new StreamReader("../../../Input/"+sources[0]);
-                        List<string> tuples = new List<string>();
-                        while ((line = file.ReadLine()) != null)
-                        {
-                            if(!line.StartsWith("%"))
-                                tuples.Add(removeWhiteSpaces(line));
-                        }
-                        processTuples(tuples);
+                        if(!line.StartsWith("%"))
+                            tuples.Add(removeWhiteSpaces(line));
                     }
-                    else
-                    {
-                        ops_as_sources.Add(sources[0]);
-                        sendRequestToSources(ops_as_sources);
-                        Console.WriteLine("Waiting tuples from an operator");
-                    }
+                    processTuples(tuples);
                 }
+                else
+                {
+                    ops_as_sources.Add(sources[0]);
+                    sendRequestToSources(ops_as_sources);
+                    Console.WriteLine("Waiting tuples from an operator");
+                }
+                
             }
             else
                 throw new OpByteCodesNotReceivedException("The operator " + opName + " at " + urls[0] + "not received operator byte codes");
         }
 
-        public string removeWhiteSpaces(string s)
+        private string removeWhiteSpaces(string s)
         {
             bool aceptingSpaces=false;
             string result = "";

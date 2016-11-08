@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Shared_Library;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,14 @@ using System.Threading.Tasks;
 
 namespace LibOperator
 {
-    class DupOperator
+    public class DupOperator : IOperator
     {
+        public IList<string> CustomOperation(IList<string> candidatTuples, IList<string> opSpecs)
+        {
+            if (opSpecs != null)
+                throw new WrongOpSpecsException("Dup Operator Specification has not arguments.");
+            return candidatTuples;
+        }
+
     }
 }
