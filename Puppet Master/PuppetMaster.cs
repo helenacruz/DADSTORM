@@ -23,6 +23,9 @@ namespace PuppetMaster
 
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
+        public delegate void RemoteAsyncCreateOpDelegate(string pmurl, string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, int port);
+        public delegate void RemoteAsyncStartOpDelegate();
+
         private static String CONFIG_FILE_PATH = @"../../../Config.txt";
         private static String SCRIPT_FILE_PATH = @"../../../Script.txt";
         private static String LIB_OPERATORS_PATH = @"../../../LibOperator/bin/Debug/LibOperator.dll";
@@ -198,7 +201,9 @@ namespace PuppetMaster
                 IRemoteOperator op = operators[opId];
                 try
                 {
-                    op.startOperator();
+                    RemoteAsyncStartOpDelegate RemoteDel = new RemoteAsyncStartOpDelegate(op.startOperator);
+                    IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
+                    //op.startOperator();
                 }
                 catch (WrongOpSpecsException e) 
                 {
@@ -373,7 +378,11 @@ namespace PuppetMaster
             IRemoteProcessCreation pcs = (IRemoteProcessCreation)Activator.GetObject(typeof(IRemoteProcessCreation), pcs_address);
             if (pcs == null)
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + pcs_address);
-            pcs.createOP(pmurl, "op", sources, rep_fact, routing, urls, port);
+
+            RemoteAsyncCreateOpDelegate RemoteDel = new RemoteAsyncCreateOpDelegate(pcs.createOP);
+            IAsyncResult RemAr = RemoteDel.BeginInvoke(pmurl, "op", sources, rep_fact, routing, urls, port,null,null);
+
+            //pcs.createOP(pmurl, "op", sources, rep_fact, routing, urls, port);
 
             IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), urls[0]);
             if (op == null)
