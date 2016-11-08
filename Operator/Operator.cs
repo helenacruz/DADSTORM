@@ -9,6 +9,7 @@ using System.Runtime.Remoting;
 using Shared_Library;
 using System.IO;
 using System.Reflection;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Operator
 {
@@ -58,6 +59,8 @@ namespace Operator
         private IList<string> receiverUrls=null;
         private IRemoteOperator receiver=null;
 
+        private bool frozen;
+
         public Operator(string pmurl, string opName, List<string> sources, String repFact, String routing, List<String> urls, int port) {
             this.pmurl = pmurl;
             this.opName = opName;
@@ -66,6 +69,7 @@ namespace Operator
             this.routing = routing;
             this.urls = urls;
             this.port = port;
+            this.frozen = false;
         }
 
         public void registerOP()
@@ -89,8 +93,22 @@ namespace Operator
             }
         }
 
+        private bool canProcessTuples()
+        {
+            return frozen == false;
+        }
+
         private bool processTuples(IList<string> tuples)
         {
+            if (!canProcessTuples())
+            {
+                foreach (string tuple in tuples) {
+                    notSentTuples.Add(tuple);
+                }
+               
+                return false;
+            }
+
             Assembly assembly = Assembly.Load(this.opTypeCode);
             foreach (Type type in assembly.GetTypes())
             {
@@ -198,6 +216,37 @@ namespace Operator
         public void doProcessTuples(IList<string> tuples)
         {
             processTuples(tuples);
+        }
+
+        public void interval(int milliseconds)
+        {
+            System.Threading.Thread.Sleep(milliseconds);
+        }
+
+        public void status()
+        {
+            // TODO 
+        }
+
+        public void crash()
+        {
+            // for console applications
+            System.Environment.Exit(0);
+        }
+
+        public void freeze()
+        {
+            frozen = true;
+        }
+
+        public void unfreeze()
+        {
+            frozen = false;
+        }
+
+        public void wait(int milliseconds)
+        {
+            System.Threading.Thread.Sleep(milliseconds);
         }
         #endregion
     }

@@ -46,7 +46,6 @@ namespace PuppetMaster
             operators_addresses = new Dictionary<int, IList<string>>();
             operators = new Dictionary<int, IRemoteOperator>();
 
-
             sysConfig.Semantics = SysConfig.AT_MOST_ONCE;
             sysConfig.LoggingLevel = SysConfig.LIGHT;
 
@@ -222,7 +221,8 @@ namespace PuppetMaster
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Start operator_id");
 
-            // STATUS COMMAND
+            // foreach (KeyValuePair<int, string> entry in myDic)
+
         }
 
         private void doIntervalCommand(string[] line, int lineNr)

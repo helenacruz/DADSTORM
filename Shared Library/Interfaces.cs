@@ -21,6 +21,12 @@ namespace Shared_Library
     {
         void SendOperator(byte[] code, string className, string method, IList<string> op_specs);
         void startOperator();
+        void interval(int milliseconds);
+        void status();
+        void crash();
+        void freeze();
+        void unfreeze();
+        void wait(int milliseconds);
         void requestTuples(IList<string> urls);
         void doProcessTuples(IList<string> tuples);
     }
