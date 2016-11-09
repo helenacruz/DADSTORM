@@ -43,6 +43,8 @@ namespace Operator
     {
 
         public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
+        public delegate void RemoteAsyncReqTuplesDelegate(IList<string> urls);
+        public delegate void RemoteAsyncProcessTuplesDelegate(IList<string> tuples);
 
         private TcpChannel channel;
 
@@ -100,7 +102,9 @@ namespace Operator
                 IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), source);
                 if (op == null)
                     throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + source);
-                op.requestTuples(urls);
+                RemoteAsyncReqTuplesDelegate remoteDel = new RemoteAsyncReqTuplesDelegate(op.requestTuples);
+                IAsyncResult remoteResult = remoteDel.BeginInvoke(urls, null, null);
+                //op.requestTuples(urls);
             }
         }
 
@@ -147,7 +151,11 @@ namespace Operator
                                 notSentTuples.Add(tuple);
                         }
                         else
-                            receiver.doProcessTuples(result);
+                        {
+                            RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receiver.doProcessTuples);
+                            IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(tuples, null, null);
+                            //receiver.doProcessTuples(result);
+                        }
 
                         notProcessedTuples = new List<string>();
                         return true;
@@ -277,8 +285,11 @@ namespace Operator
             if (op == null)
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + receiverUrls[0]);
             receiver=op;
-            if(notSentTuples.Count>0)
-                receiver.doProcessTuples(notSentTuples);
+            if (notSentTuples.Count > 0{
+                RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(receiver.doProcessTuples);
+                IAsyncResult remoteResult = remoteDel.BeginInvoke(notSentTuples,null, null);
+                //receiver.doProcessTuples(notSentTuples);
+            }
         }
 
         public void doProcessTuples(IList<string> tuples)
