@@ -10,6 +10,7 @@ using Shared_Library;
 using System.IO;
 using System.Reflection;
 using static System.Net.Mime.MediaTypeNames;
+using System.Diagnostics;
 
 namespace Operator
 {
@@ -40,6 +41,9 @@ namespace Operator
 
     class Operator : MarshalByRefObject, IRemoteOperator
     {
+
+        public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
+
         private TcpChannel channel;
 
         private string pmurl;
@@ -59,6 +63,7 @@ namespace Operator
 
         private IList<string> receiverUrls=null;
         private IRemoteOperator receiver=null;
+        private IRemotePuppetMaster puppet = null;
 
         private bool frozen;
 
@@ -75,11 +80,16 @@ namespace Operator
 
         public void registerOP()
         {
-            Console.WriteLine("Registering Operator at "+ urls[0]);
+            Console.WriteLine("Registering Operator at "+ urls[0] + " ...");
             channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
             RemotingServices.Marshal(this,opName, typeof(IRemoteOperator));
-            
+
+            channel = new TcpChannel();
+            puppet = (IRemotePuppetMaster)Activator.GetObject(typeof(Operator), pmurl);
+            if (puppet == null)
+                throw new CannotAccessRemoteObjectException("Cannot get remote Puppet Master from " + pmurl);
+
         }
 
         private void sendRequestToSources(List<string> opsAsSources)
@@ -125,8 +135,12 @@ namespace Operator
                             args = new object[] { tuples };
                         object resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod,null, ClassObj, args);
                         IList<string> result = (IList<string>)resultObject;
-                        foreach (string tuple in result) 
-                            Console.WriteLine(tuple);
+                        //foreach (string tuple in result) 
+                        //Console.WriteLine(tuple);
+
+                        RemoteAsyncLogDelegate RemoteDel = new RemoteAsyncLogDelegate(puppet.registerLog);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(urls[0], result,null, null);
+
                         if (receiver == null)
                         {
                             foreach (string tuple in result)
@@ -134,6 +148,8 @@ namespace Operator
                         }
                         else
                             receiver.doProcessTuples(result);
+
+                        notProcessedTuples = new List<string>();
                         return true;
                     }
                 }
@@ -178,7 +194,7 @@ namespace Operator
                 {
                     ops_as_sources.Add(sources[0]);
                     sendRequestToSources(ops_as_sources);
-                    Console.WriteLine("Waiting tuples from an operator");
+                    Console.WriteLine("Waiting tuples from an operator...");
                 }
                 
             }
@@ -211,7 +227,27 @@ namespace Operator
 
         public void status()
         {
-            // TODO 
+            Console.WriteLine("");
+            Console.WriteLine("Status of " + opName + " at " + urls[0] + ":");
+            Console.WriteLine("   Class Name: " + className);
+            Console.WriteLine("   Method: " + method);
+            if (frozen)
+                Console.WriteLine("   State: Frozen.");
+            else
+                Console.WriteLine("   State: Not Frozen.");
+           
+            Console.WriteLine("   Replication factory: " + repFact);
+            Console.WriteLine("   Routing: " + routing);
+            Console.Write("   Active Replicas: " );
+            foreach (string url in urls)
+                Console.Write(url+"  ");
+            Console.WriteLine("");
+            Console.WriteLine("   Not processed Tuples: ");
+            foreach (string tuple in notProcessedTuples)
+                Console.WriteLine("      "+tuple);
+            Console.WriteLine("");
+            Console.WriteLine("End of status.");
+            Console.WriteLine("");
         }
 
         public void crash()

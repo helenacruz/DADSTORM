@@ -14,7 +14,7 @@ namespace Shared_Library
 
     public interface IRemotePuppetMaster
     {
-        void registerLog();
+        void registerLog(string address, IList<string> tuples);
     }
 
     public interface IRemoteOperator
