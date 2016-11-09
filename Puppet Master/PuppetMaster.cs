@@ -24,7 +24,8 @@ namespace PuppetMaster
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
         public delegate void RemoteAsyncCreateOpDelegate(string pmurl, string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, int port);
-        public delegate void RemoteAsyncStartOpDelegate();
+        public delegate void RemoteAsyncNoArgsOpDelegate();
+        public delegate void RemoteAsyncIntervalOpDelegate(int ms);
 
         private static String CONFIG_FILE_PATH = @"../../../Config.txt";
         private static String SCRIPT_FILE_PATH = @"../../../Script.txt";
@@ -200,7 +201,7 @@ namespace PuppetMaster
                 IRemoteOperator op = operators[opId];
                 try
                 {
-                    RemoteAsyncStartOpDelegate RemoteDel = new RemoteAsyncStartOpDelegate(op.startOperator);
+                    RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.startOperator);
                     IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
                     //op.startOperator();
                 }
@@ -228,67 +229,65 @@ namespace PuppetMaster
         private void doIntervalCommand(string[] line, int lineNr)
         {
             int ms;
+            int opId = -1;
 
-            if (line.Length != 3)
+            if (line.Length != 3 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId) || !Int32.TryParse(line[2], out ms))
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Interval operator_id x_ms");
 
-            if (Int32.TryParse(line[2], out ms))
-            {
-                // INTERVAL COMMAND 
-            }
-            else
-            {
-                throw new ParseException("Error parsing file in line " + lineNr +
-                    ". You must insert a valid number.");
-            }
-
+            IRemoteOperator op = operators[opId];
+            RemoteAsyncIntervalOpDelegate RemoteDel = new RemoteAsyncIntervalOpDelegate(op.interval);
+            IAsyncResult RemAr = RemoteDel.BeginInvoke(ms,null, null);
+           
         }
 
         private void doCrashCommand(string[] line, int lineNr)
         {
-            if (line.Length != 3)
+            int opId = -1;
+
+            if (line.Length != 2 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId))
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Crash process_name");
 
-            // CRASH COMMAND
+            IRemoteOperator op = operators[opId];
+            RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.crash);
+            IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
         }
 
         private void doFreezeCommand(string[] line, int lineNr)
         {
-            if (line.Length != 3)
+            int opId = -1;
+
+            if (line.Length != 2 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId))
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Freeze process_name");
 
-            // FREEZE COMMAND
+            IRemoteOperator op = operators[opId];
+            RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.freeze);
+            IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
         }
 
         private void doUnfreezeCommand(string[] line, int lineNr)
         {
-            if (line.Length != 3)
+            int opId = -1;
+
+            if (line.Length != 2 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId))
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Unfreeze process_name");
 
-            // UNFREEZE COMMAND
+            IRemoteOperator op = operators[opId];
+            RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.unfreeze);
+            IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
         }
 
         private void doWaitCommand(string[] line, int lineNr)
         {
             int ms; 
 
-            if (line.Length != 2)
+            if (line.Length != 2 || !Int32.TryParse(line[1], out ms))
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Wait x_ms");
-
-            if (Int32.TryParse(line[1], out ms))
-            {
-                // WAIT COMMAND 
-            }
-            else
-            {
-                throw new ParseException("Error parsing file in line " + lineNr +
-                    ". You must insert a valid number.");
-            }
+            System.Threading.Thread.Sleep(ms);
         }
 
         private void doOperatorCommand(string[] line, int lineNr)

@@ -26,7 +26,6 @@ namespace Shared_Library
         void crash();
         void freeze();
         void unfreeze();
-        void wait(int milliseconds);
         void requestTuples(IList<string> urls);
         void doProcessTuples(IList<string> tuples);
     }

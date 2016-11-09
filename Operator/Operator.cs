@@ -55,6 +55,7 @@ namespace Operator
         private IList<string> opSpecs;
 
         private IList<string> notSentTuples = new List<string>();
+        private IList<string> notProcessedTuples = new List<string>();
 
         private IList<string> receiverUrls=null;
         private IRemoteOperator receiver=null;
@@ -103,7 +104,7 @@ namespace Operator
             if (!canProcessTuples())
             {
                 foreach (string tuple in tuples) {
-                    notSentTuples.Add(tuple);
+                    notProcessedTuples.Add(tuple);
                 }
                
                 return false;
@@ -202,21 +203,6 @@ namespace Operator
             return result;
         }
 
-        public void requestTuples(IList<string> urls)
-        {
-            receiverUrls = urls;
-            channel = new TcpChannel();
-            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), receiverUrls[0]);
-            if (op == null)
-                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + receiverUrls[0]);
-            receiver=op;
-            receiver.doProcessTuples(notSentTuples);
-        }
-
-        public void doProcessTuples(IList<string> tuples)
-        {
-            processTuples(tuples);
-        }
 
         public void interval(int milliseconds)
         {
@@ -242,12 +228,27 @@ namespace Operator
         public void unfreeze()
         {
             frozen = false;
-        }
-
-        public void wait(int milliseconds)
-        {
-            System.Threading.Thread.Sleep(milliseconds);
+            if (notProcessedTuples.Count>0)
+                processTuples(notProcessedTuples);
         }
         #endregion
+
+        public void requestTuples(IList<string> urls)
+        {
+            receiverUrls = urls;
+            channel = new TcpChannel();
+            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), receiverUrls[0]);
+            if (op == null)
+                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + receiverUrls[0]);
+            receiver=op;
+            if(notSentTuples.Count>0)
+                receiver.doProcessTuples(notSentTuples);
+        }
+
+        public void doProcessTuples(IList<string> tuples)
+        {
+            processTuples(tuples);
+        }
+
     }
 }
