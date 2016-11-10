@@ -68,6 +68,8 @@ namespace PuppetMaster
             this.Result.Size = new System.Drawing.Size(479, 379);
             this.Result.TabIndex = 2;
             this.Result.TextChanged += new System.EventHandler(this.Result_TextChanged);
+            this.Result.SelectionStart = this.Result.Text.Length;
+            this.Result.ScrollToCaret();
             // 
             // commandTextBox
             // 
