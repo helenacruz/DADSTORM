@@ -41,16 +41,15 @@ namespace ProcessCreation
         }
 
         #region "Interface Methods"
-        public void createOP(string pmurl, string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, int port)
+        public void createOP(string opName,string port,SysConfig sysConfig,string pmurl, IList<string> sources, String rep_fact, String routing, IList<String> urls)
         {
-            Console.WriteLine("Creating operator "+id+" at "+urls[0]);
+            Console.WriteLine("Creating operator "+opName+" at "+urls[0]);
     
             Process process = new Process();
 
             process.StartInfo.FileName = UNIQUE_OPERATOR_PROCESS;
-
             int j = 0;
-            string args = pmurl + " " + id + " ";
+            string args = pmurl + " " + opName + " ";
             foreach (string s in sources)
             {
                 if (sources.Count-1 == j)
@@ -74,7 +73,7 @@ namespace ProcessCreation
             Console.WriteLine("Using the following parameters: "+args);
             process.StartInfo.Arguments = args;
             process.Start();
-            Console.WriteLine("Operator " + id + " was created.");
+            Console.WriteLine("Operator " + opName + " was created.");
         }
         #endregion
     }

@@ -23,7 +23,7 @@ namespace PuppetMaster
 
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
-        public delegate void RemoteAsyncCreateOpDelegate(string pmurl, string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, int port);
+        public delegate void RemoteAsyncCreateOpDelegate(string opName,string port,SysConfig sysConfig, string pmurl, IList<string> sources, String rep_fact, String routing, IList<String> urls);
         public delegate void RemoteAsyncSendOpDelegate(byte[] code, string className, string method, IList<string> op_specs);
         public delegate void RemoteAsyncNoArgsOpDelegate();
         public delegate void RemoteAsyncIntervalOpDelegate(int ms);
@@ -33,12 +33,15 @@ namespace PuppetMaster
         private static String LIB_OPERATORS_PATH = @"../../../LibOperator/bin/Debug/LibOperator.dll";
         private static String DEFAULT_METHOD = "CustomOperation";
 
+        private string semantics;
+        private string loggingLevel;
+
         private string pmurl;
 
         private SysConfig sysConfig;
 
         private Dictionary<int, IList<string>> operators_addresses;
-        private Dictionary<int, IRemoteOperator> operators;
+        private Dictionary<int, IList<IRemoteOperator>> operators;
 
         TcpChannel channel;
 
@@ -46,7 +49,7 @@ namespace PuppetMaster
         {
             sysConfig = new SysConfig();
             operators_addresses = new Dictionary<int, IList<string>>();
-            operators = new Dictionary<int, IRemoteOperator>();
+            operators = new Dictionary<int, IList<IRemoteOperator>>();
 
             sysConfig.Semantics = SysConfig.AT_MOST_ONCE;
             sysConfig.LoggingLevel = SysConfig.LIGHT;
@@ -60,8 +63,8 @@ namespace PuppetMaster
             Console.WriteLine("Reading configuration file...");
             readCommands(CONFIG_FILE_PATH);
             Console.WriteLine("Reading script file...");
-            readCommands(SCRIPT_FILE_PATH);
             Console.WriteLine("Waiting commands (type \"q\" to exit)");
+            readCommands(SCRIPT_FILE_PATH);
             manualMode();
             Console.WriteLine("Shutingdown the network...");
             shutDownAll();
@@ -86,9 +89,18 @@ namespace PuppetMaster
             file = new StreamReader(path);
 
             while ((line = file.ReadLine()) != null)
-                doCommandLine(line, lineNr++);
+            {
+                try
+                {
+                    doCommandLine(line, lineNr++);
+                }
+                catch(ParseException e)
+                {
+                    Console.WriteLine(e.Msg);
+                }
 
-            Console.WriteLine("Successfully parsed the file.");
+            }
+
         }
 
         private void doCommandLine(String line, int lineNr)
@@ -108,30 +120,37 @@ namespace PuppetMaster
                 else if (option == "start")
                 {
                     doStartCommand(lineArray, lineNr);
+                    Console.WriteLine(line);
                 }
                 else if (option == "status")
                 {
                     doStatusCommand(lineArray, lineNr);
+                    Console.WriteLine(line);
                 }
                 else if (option == "interval")
                 {
                     doIntervalCommand(lineArray, lineNr);
+                    Console.WriteLine(line);
                 }
                 else if (option == "crash")
                 {
                     doCrashCommand(lineArray, lineNr);
+                    Console.WriteLine(line);
                 }
                 else if (option == "freeze")
                 {
                     doFreezeCommand(lineArray, lineNr);
+                    Console.WriteLine(line);
                 }
                 else if (option == "unfreeze")
                 {
                     doUnfreezeCommand(lineArray, lineNr);
+                    Console.WriteLine(line);
                 }
                 else if (option == "wait")
                 {
                     doWaitCommand(lineArray, lineNr);
+                    Console.WriteLine(line);
                 }
                 else if (option.StartsWith("op"))
                 {
@@ -199,34 +218,27 @@ namespace PuppetMaster
             }
             if (opId <= operators.Count)
             {
-                IRemoteOperator op = operators[opId];
-                try
+                IList<IRemoteOperator> ops = operators[opId];
+                foreach (IRemoteOperator op in ops)
                 {
                     RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.startOperator);
                     IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
-                    //op.startOperator();
                 }
-                catch (WrongOpSpecsException e) 
-                {
-                    Console.WriteLine(e.msg);
-                }
-                catch (OpByteCodesNotReceivedException e)
-                {
-                    Console.WriteLine(e.msg);
-                }
+                 
             }
         }
 
         private void doStatusCommand(string[] line, int lineNr)
         {
-            IRemoteOperator op;
-            RemoteAsyncNoArgsOpDelegate RemoteDel;
-            IAsyncResult RemAr;
-            foreach (KeyValuePair<int, IRemoteOperator> entry in operators)
+            foreach (KeyValuePair<int, IList<IRemoteOperator>> entry in operators)
             {
-                op = operators[entry.Key];
-                RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.status);
-                RemAr = RemoteDel.BeginInvoke(null, null);
+
+                IList<IRemoteOperator> ops = operators[entry.Key];
+                foreach (IRemoteOperator op in ops)
+                {
+                    RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.status);
+                    IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
+                }
             }
         }
 
@@ -239,21 +251,25 @@ namespace PuppetMaster
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Interval operator_id x_ms");
 
-            IRemoteOperator op = operators[opId];
-            RemoteAsyncIntervalOpDelegate RemoteDel = new RemoteAsyncIntervalOpDelegate(op.interval);
-            IAsyncResult RemAr = RemoteDel.BeginInvoke(ms,null, null);
+            IList<IRemoteOperator> ops = operators[opId];
+            foreach (IRemoteOperator op in ops)
+            {
+                RemoteAsyncIntervalOpDelegate RemoteDel = new RemoteAsyncIntervalOpDelegate(op.interval);
+                IAsyncResult RemAr = RemoteDel.BeginInvoke(ms,null, null);
+            }
            
         }
 
         private void doCrashCommand(string[] line, int lineNr)
         {
             int opId = -1;
+            int opReplica = -1;
 
-            if (line.Length != 2 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId))
+            if (line.Length != 3 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId) || !Int32.TryParse(line[2], out opReplica))
                 throw new ParseException("Error parsing file in line " + lineNr +
-                    ". The correct format is Crash process_name");
+                    ". The correct format is Crash process_name replica_number");
 
-            IRemoteOperator op = operators[opId];
+            IRemoteOperator op = operators[opId][opReplica];
             RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.crash);
             IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
         }
@@ -261,12 +277,12 @@ namespace PuppetMaster
         private void doFreezeCommand(string[] line, int lineNr)
         {
             int opId = -1;
+            int opReplica = -1;
 
-            if (line.Length != 2 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId))
+            if (line.Length != 3 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId) || !Int32.TryParse(line[2], out opReplica))
                 throw new ParseException("Error parsing file in line " + lineNr +
-                    ". The correct format is Freeze process_name");
-
-            IRemoteOperator op = operators[opId];
+                    ". The correct format is Crash process_name replica_number");
+            IRemoteOperator op = operators[opId][opReplica];
             RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.freeze);
             IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
         }
@@ -274,12 +290,13 @@ namespace PuppetMaster
         private void doUnfreezeCommand(string[] line, int lineNr)
         {
             int opId = -1;
+            int opReplica = -1;
 
-            if (line.Length != 2 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId))
+            if (line.Length != 3 || !Int32.TryParse(line[1].ToLower().Replace("op", ""), out opId) || !Int32.TryParse(line[2], out opReplica))
                 throw new ParseException("Error parsing file in line " + lineNr +
-                    ". The correct format is Unfreeze process_name");
+                    ". The correct format is Crash process_name replica_number");
 
-            IRemoteOperator op = operators[opId];
+            IRemoteOperator op = operators[opId][opReplica];
             RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.unfreeze);
             IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
         }
@@ -360,65 +377,86 @@ namespace PuppetMaster
                 }
             }
 
-            string[] aux1 = addresses[0].Split('/');
-            string address = aux1[aux1.Length-2];
-            string[] aux2 = address.Split(':');
 
-            string pcs_address = aux1[0];
-            for(int j = 1; j < aux1.Length-1; j++)
-            {
-                if(j==aux1.Length-2)
-                    pcs_address += "/" + aux2[0]+":"+SysConfig.PCS_PORT + "/" + SysConfig.PCS_NAME;
-                else
-                    pcs_address += "/" + aux1[j];
-            }
-
-            doCreateOperator(pmurl, ""+op, sources, ""+rep_fact, routing, addresses,pcs_address, Int32.Parse(aux2[1]), type, opSpecs);
+            doCreateOperator(pmurl, ""+op, sources, ""+rep_fact, routing, addresses, type, opSpecs);
         }
 
-        private void doCreateOperator(string pmurl, string id, IList<string> sources, String rep_fact, String routing, IList<String> urls,string pcs_address, int port, string type, IList<string> op_specs)
+        private void doCreateOperator(string pmurl,  string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, string type, IList<string> op_specs)
         {
-            
-            IRemoteProcessCreation pcs = (IRemoteProcessCreation)Activator.GetObject(typeof(IRemoteProcessCreation), pcs_address);
-            if (pcs == null)
-                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + pcs_address);
+            IList<IRemoteOperator> replicas = new List<IRemoteOperator>();
 
-            RemoteAsyncCreateOpDelegate RemoteDel = new RemoteAsyncCreateOpDelegate(pcs.createOP);
-            IAsyncResult RemAr = RemoteDel.BeginInvoke(pmurl, "op", sources, rep_fact, routing, urls, port,null,null);
-
-            //pcs.createOP(pmurl, "op", sources, rep_fact, routing, urls, port);
-
-            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), urls[0]);
-            if (op == null)
-                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + urls[0]);
-
-            byte[] code;
-            RemoteAsyncSendOpDelegate RemoteSendDel = new RemoteAsyncSendOpDelegate(op.SendOperator);
-            IAsyncResult RemSendAr;
-
-            if (type.ToLower().Equals(SysConfig.CUSTOM))
+            foreach (string url in urls)
             {
-                if (op_specs.Count != 3 || op_specs[0].Equals("") || op_specs[1].Equals("") || op_specs[2].Equals(""))
-                    throw new WrongOpSpecsException("Custom Operator Specification needs 3 arguments.");
-                code = File.ReadAllBytes(op_specs[0]);
-                RemSendAr = RemoteSendDel.BeginInvoke(code, op_specs[1], op_specs[2],null, null, null);
-            }
-            else
-            {
-                string className = "";
-                code = File.ReadAllBytes(LIB_OPERATORS_PATH);
-                if (type.ToLower().Equals(SysConfig.UNIQUE))
-                    className = "UniqueOperator";
-                else if (type.ToLower().Equals(SysConfig.COUNT))
-                    className = "CountOperator";
-                else if (type.ToLower().Equals(SysConfig.FILTER))
-                    className = "FilterOperator";
-                else if (type.ToLower().Equals(SysConfig.DUP))
-                    className = "DupOperator";
+                string[] aux1 = url.Split('/');
+                string address = aux1[aux1.Length - 2];
+                string nameOp = aux1[aux1.Length - 1];
 
-                RemSendAr = RemoteSendDel.BeginInvoke(code, className, DEFAULT_METHOD, op_specs, null, null);
+                string[] aux2 = address.Split(':');
+
+                string pcs_address = aux1[0];
+                string port = aux2[1];
+
+                for (int j = 1; j < aux1.Length - 1; j++)
+                {
+                    if (j == aux1.Length - 2)
+                        pcs_address += "/" + aux2[0] + ":" + SysConfig.PCS_PORT + "/" + SysConfig.PCS_NAME;
+                    else
+                        pcs_address += "/" + aux1[j];
+                }
+
+                IRemoteProcessCreation pcs = (IRemoteProcessCreation)Activator.GetObject(typeof(IRemoteProcessCreation), pcs_address);
+                if (pcs == null)
+                    throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + pcs_address);
+
+                //first url is of machine and others are from replicas
+                IList<string> orderedUrls = new List<string>();
+                orderedUrls.Add(url);
+                foreach (string s in urls)
+                {
+                    if(!s.Equals(url))
+                        orderedUrls.Add(s);
+                }
+
+                RemoteAsyncCreateOpDelegate RemoteDel = new RemoteAsyncCreateOpDelegate(pcs.createOP);
+                IAsyncResult RemAr = RemoteDel.BeginInvoke(nameOp,port, sysConfig, pmurl, sources, rep_fact, routing, orderedUrls, null, null);
+
+                IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), url);
+                if (op == null)
+                    throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + url);
+
+                Console.WriteLine("xx" + pcs_address);
+                Console.WriteLine("xx" + nameOp);
+                Console.WriteLine("xx" + port);
+                Console.WriteLine("xx" + url);
+                byte[] code;
+                RemoteAsyncSendOpDelegate RemoteSendDel = new RemoteAsyncSendOpDelegate(op.SendOperator);
+                IAsyncResult RemSendAr;
+
+                if (type.ToLower().Equals(SysConfig.CUSTOM))
+                {
+                    if (op_specs.Count != 3 || op_specs[0].Equals("") || op_specs[1].Equals("") || op_specs[2].Equals(""))
+                        throw new WrongOpSpecsException("Custom Operator Specification needs 3 arguments.");
+                    code = File.ReadAllBytes(op_specs[0]);
+                    RemSendAr = RemoteSendDel.BeginInvoke(code, op_specs[1], op_specs[2], null, null, null);
+                }
+                else
+                {
+                    string className = "";
+                    code = File.ReadAllBytes(LIB_OPERATORS_PATH);
+                    if (type.ToLower().Equals(SysConfig.UNIQUE))
+                        className = "UniqueOperator";
+                    else if (type.ToLower().Equals(SysConfig.COUNT))
+                        className = "CountOperator";
+                    else if (type.ToLower().Equals(SysConfig.FILTER))
+                        className = "FilterOperator";
+                    else if (type.ToLower().Equals(SysConfig.DUP))
+                        className = "DupOperator";
+
+                    RemSendAr = RemoteSendDel.BeginInvoke(code, className, DEFAULT_METHOD, op_specs, null, null);
+                }
+                replicas.Add(op);
             }
-            operators.Add(Int32.Parse(id), op);
+            operators.Add(Int32.Parse(id), replicas);
         }
 
         private List<string> doInputOps(String[] line, int i)
@@ -502,14 +540,15 @@ namespace PuppetMaster
 
         private void shutDownAll()
         {
-            IRemoteOperator op;
-            RemoteAsyncNoArgsOpDelegate RemoteDel;
-            IAsyncResult RemAr;
-            foreach (KeyValuePair<int, IRemoteOperator> entry in operators)
+            foreach (KeyValuePair<int, IList<IRemoteOperator>> entry in operators)
             {
-                op = operators[entry.Key];
-                RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.crash);
-                RemAr = RemoteDel.BeginInvoke(null, null);
+                IList<IRemoteOperator> replicas = operators[entry.Key];
+                foreach(IRemoteOperator op in replicas)
+                {
+                    RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.crash);
+                    IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
+                }
+                
             }
         }
 
@@ -517,7 +556,7 @@ namespace PuppetMaster
         public void registerLog(string address, IList<string> tuples)
         {
             foreach (string tuple in tuples)
-                Console.WriteLine(address + "--->" + tuple);
+                Console.WriteLine(address + ",<" + tuple+">");
         }
 
         #endregion

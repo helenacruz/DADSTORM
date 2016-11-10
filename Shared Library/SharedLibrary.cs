@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Shared_Library
 {
+    [Serializable]
     public class SysConfig
     {
         public const int PM_PORT = 10000;
