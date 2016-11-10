@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Shared_Library;
 using System.Runtime.Remoting;
 using System.IO;
-
+using System.Windows.Forms;
 
 namespace PuppetMaster
 {
@@ -16,8 +16,9 @@ namespace PuppetMaster
     {
         static void Main(string[] args)
         {
-            PuppetMaster pm = new PuppetMaster();
-            pm.start();
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new PuppetMasterUI());
         }
     }
 
@@ -44,39 +45,101 @@ namespace PuppetMaster
 
         bool manualM = false;
 
+        private List<string> waitListCommands;
+        private List<string> logs;
+
         public PuppetMaster()
         {
             sysConfig = new SysConfig();
             operators_addresses = new Dictionary<int, IList<string>>();
             operators = new Dictionary<int, IList<IRemoteOperator>>();
+            waitListCommands = new List<string>();
+            logs = new List<string>();
 
             sysConfig.Semantics = SysConfig.AT_MOST_ONCE;
             sysConfig.LoggingLevel = SysConfig.LIGHT;
 
+            addCommandsToWaitList(SCRIPT_FILE_PATH);
         }
+
+        private void logInfo(string log)
+        {
+            logs.Add(log);
+        }      
+
+        public string getLogs()
+        {
+            string result = "";
+
+            foreach (string log in logs)
+            {
+                result += log + "\r\n";
+            }
+            result.Remove(result.Length - 1);
+
+            return result;
+        }
+          
+        public void readScriptFile()
+        {
+            string log = "Reading script file...";
+            Console.WriteLine(log);
+            logInfo(log);
+            readCommands(SCRIPT_FILE_PATH);
+        }
+        
        
+        public void processOneMoreStep()
+        {
+            if (waitListCommands.Count > 0)
+            {
+                enterCommand(waitListCommands[0]);
+                waitListCommands.RemoveAt(0);
+            }
+        }
+
         public void start()
         {
-            Console.WriteLine("Registering Puppet Master...");
-            registerPM();
-            Console.WriteLine("Reading configuration file...");
-            readCommands(CONFIG_FILE_PATH);
-            Console.WriteLine("Reading script file...");
-            Console.WriteLine("Waiting commands (type \"q\" to exit)");
-            readCommands(SCRIPT_FILE_PATH);
+            string log = "Registering Puppet Master...";
+            Console.WriteLine(log);
+            logInfo(log);
 
+            registerPM();
+
+            log = "Reading configuration file...";
+            Console.WriteLine(log);
+            logInfo(log);
+
+            readCommands(CONFIG_FILE_PATH);
+            // Console.WriteLine("Reading script file...");
+            // Console.WriteLine("Waiting commands (type \"q\" to exit)");
+            // readCommands(SCRIPT_FILE_PATH);
+
+            
             IList<IRemoteOperator> lastReplica = operators[operators.Count];
             foreach (IRemoteOperator op in lastReplica)
             {
                 RemoteAsyncNoArgsOpDelegate RemoteSendDel = new RemoteAsyncNoArgsOpDelegate(op.makeAsOutputOperator);
                 IAsyncResult RemSendAr = RemoteSendDel.BeginInvoke(null, null);
             }
-
+            
+            /*
             manualMode();
             Console.WriteLine("Shutingdown the network...");
             shutDownAll();
             Console.WriteLine("All processes was terminated.");
             Console.ReadLine();
+            */
+        }
+
+        public void makeOperatorsOutput()
+        {
+            IList<IRemoteOperator> lastReplica = operators[operators.Count];
+            foreach (IRemoteOperator op in lastReplica)
+            {
+                RemoteAsyncNoArgsOpDelegate RemoteSendDel = new RemoteAsyncNoArgsOpDelegate(op.makeAsOutputOperator);
+                IAsyncResult RemSendAr = RemoteSendDel.BeginInvoke(null, null);
+            }
         }
 
         private void registerPM()
@@ -110,62 +173,89 @@ namespace PuppetMaster
 
         }
 
+        private void addCommandsToWaitList(string path)
+        {
+            string line;
+            StreamReader file;
+
+            file = new StreamReader(path);
+
+            while ((line = file.ReadLine()) != null)
+            {
+                if (!line.StartsWith("%"))
+                {
+                    waitListCommands.Add(line);
+                }
+            }
+        }
+
         private void doCommandLine(String line, int lineNr)
         {
             string[] lineArray = line.Split(' ');
             string option = lineArray[0].ToLower();
+
             if (line != "")
             {
                 if (option == "semantics")
                 {
+                    logInfo(line);
                     doSemanticsCommand(lineArray, lineNr);
                 }
                 else if (option == "logginglevel")
                 {
+                    logInfo(line);
                     doLoggingLevelCommand(lineArray, lineNr);
                 }
                 else if (option == "start")
                 {
+                    logInfo(line);
                     doStartCommand(lineArray, lineNr);
                     if(!manualM)
                         Console.WriteLine(line);
                 }
                 else if (option == "status")
                 {
+                    logInfo(line);
                     doStatusCommand(lineArray, lineNr);
                     if (!manualM)
                         Console.WriteLine(line);
                 }
                 else if (option == "interval")
                 {
+                    logInfo(line);
                     doIntervalCommand(lineArray, lineNr);
                     if (!manualM)
                         Console.WriteLine(line);
                 }
                 else if (option == "crash")
                 {
+                    logInfo(line);
                     doCrashCommand(lineArray, lineNr);
                     if (!manualM)
                         Console.WriteLine(line);
                 }
                 else if (option == "freeze")
                 {
+                    logInfo(line);
                     doFreezeCommand(lineArray, lineNr);
                     if (!manualM)
                         Console.WriteLine(line);
                 }
                 else if (option == "unfreeze")
                 {
+                    logInfo(line);
                     doUnfreezeCommand(lineArray, lineNr);
                     if (!manualM)
                         Console.WriteLine(line);
                 }
                 else if (option == "wait")
                 {
+                    logInfo(line);
                     doWaitCommand(lineArray, lineNr);
                 }
                 else if (option.StartsWith("op"))
                 {
+                    logInfo(line);
                     doOperatorCommand(lineArray, lineNr);
                 }
                 else if (option.StartsWith("%"))
@@ -174,7 +264,9 @@ namespace PuppetMaster
                 }
                 else
                 {
-                    Console.WriteLine("The configuration command at line " + lineNr + " doesn't exist:" + line);
+                    string log = "The configuration command at line " + lineNr + " doesn't exist:" + line;
+                    Console.WriteLine(log);
+                    logInfo(log);
                 }
             }
         }
@@ -556,7 +648,14 @@ namespace PuppetMaster
             }
         }
 
-        private void shutDownAll()
+        public void enterCommand(string command)
+        {
+            manualM = true;
+            doCommandLine(command.ToLower(), 0);
+            manualM = false;
+        }
+
+        public void shutDownAll()
         {
             foreach (KeyValuePair<int, IList<IRemoteOperator>> entry in operators)
             {
@@ -573,8 +672,11 @@ namespace PuppetMaster
         #region "Interface Methods"
         public void registerLog(string address, IList<string> tuples)
         {
-            foreach (string tuple in tuples)
-                Console.WriteLine(address + ",<" + tuple+">");
+            foreach (string tuple in tuples) {
+                string log = address + ",<" + tuple + ">";
+                Console.WriteLine(log);
+                logInfo(log);
+            }
         }
 
         #endregion
