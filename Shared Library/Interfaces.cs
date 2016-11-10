@@ -28,6 +28,7 @@ namespace Shared_Library
         void unfreeze();
         void requestTuples(string receiver_routing, IList<string> receiver_urls);
         void doProcessTuples(IList<string> tuples);
+        void makeAsOutputOperator();
     }
 
     public interface IOperator

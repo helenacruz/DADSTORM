@@ -64,6 +64,14 @@ namespace PuppetMaster
             Console.WriteLine("Reading script file...");
             Console.WriteLine("Waiting commands (type \"q\" to exit)");
             readCommands(SCRIPT_FILE_PATH);
+
+            IList<IRemoteOperator> lastReplica = operators[operators.Count];
+            foreach (IRemoteOperator op in lastReplica)
+            {
+                RemoteAsyncNoArgsOpDelegate RemoteSendDel = new RemoteAsyncNoArgsOpDelegate(op.makeAsOutputOperator);
+                IAsyncResult RemSendAr = RemoteSendDel.BeginInvoke(null, null);
+            }
+
             manualMode();
             Console.WriteLine("Shutingdown the network...");
             shutDownAll();

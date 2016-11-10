@@ -59,6 +59,7 @@ namespace Operator
 
         private TcpChannel channel;
 
+        private bool finalOperator=false;
         private string pmurl;
         private string opName;
         private IList<IList<string>> sources;
@@ -182,6 +183,11 @@ namespace Operator
                         {
                             foreach (string tuple in result)
                                 notSentTuples.Add(tuple);
+                            if (finalOperator && notSentTuples.Count>0)
+                            {
+                                outputToFile(notSentTuples);
+                                notSentTuples = new List<string>();
+                            }
                         }
                         else
                         {
@@ -201,9 +207,23 @@ namespace Operator
             throw (new System.Exception("could not invoke method"));                
         }
 
+        public void outputToFile(IList<string> candidatTuples)
+        {
+            string outputFile = @"../../../Output.txt";
+
+            using (System.IO.StreamWriter file =
+            new System.IO.StreamWriter(outputFile, true))
+            {
+                foreach (string line in candidatTuples)
+                {
+                    file.WriteLine(line);
+                }
+            }
+        }
+
         #region "Interface Methods"
 
-       
+
         public void SendOperator(byte[] code, string className, string method, IList<string> opSpecs)
         {
             this.opTypeCode = code;
@@ -290,6 +310,7 @@ namespace Operator
             Console.WriteLine("   Replication factory: " + repFact);
             Console.WriteLine("   My Routing: " + routing);
             Console.WriteLine("   Receiver Routing: " + receiver_routing);
+            Console.WriteLine("   Final Operator: " + finalOperator);
             Console.Write("   Active Replicas: " );
             foreach (string url in urls)
                 Console.Write(url+"  ");
@@ -349,5 +370,13 @@ namespace Operator
             processTuples(tuples);
         }
 
-    }
+        public void makeAsOutputOperator()
+        {
+            finalOperator = true;
+            outputToFile(notSentTuples);
+            notSentTuples = new List<string>();
+        }
+
+
+}
 }

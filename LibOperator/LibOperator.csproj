@@ -43,6 +43,7 @@
     <Compile Include="CountOperator.cs" />
     <Compile Include="DupOperator.cs" />
     <Compile Include="FilterOperator.cs" />
+    <Compile Include="OutputOperator.cs" />
     <Compile Include="QueryFollowersFile.cs" />
     <Compile Include="UniqueOperator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
