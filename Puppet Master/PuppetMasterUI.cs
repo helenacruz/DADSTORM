@@ -21,6 +21,7 @@ namespace PuppetMaster
             pm.start();
             this.Result.Text = pm.getLogs();
             Console.WriteLine("Logs: " + pm.getLogs());
+            FormClosing += PuppetMasterUI_FormClosing;
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -57,5 +58,9 @@ namespace PuppetMaster
             pm.shutDownAll();
         }
 
+        private void PuppetMasterUI_Load_1(object sender, EventArgs e)
+        {
+
+        }
     }
 }

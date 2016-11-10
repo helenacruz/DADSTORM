@@ -64,10 +64,10 @@ namespace PuppetMaster
             this.Result.Multiline = true;
             this.Result.Name = "Result";
             this.Result.ReadOnly = true;
+            this.Result.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.Result.Size = new System.Drawing.Size(479, 379);
             this.Result.TabIndex = 2;
             this.Result.TextChanged += new System.EventHandler(this.Result_TextChanged);
-            this.Result.ScrollBars = ScrollBars.Vertical;
             // 
             // commandTextBox
             // 
@@ -99,6 +99,7 @@ namespace PuppetMaster
             this.Controls.Add(this.configButton);
             this.Name = "PuppetMasterUI";
             this.Text = "PuppetMaster";
+            this.Load += new System.EventHandler(this.PuppetMasterUI_Load_1);
             this.ResumeLayout(false);
             this.PerformLayout();
 
