@@ -54,7 +54,7 @@ namespace Operator
     {
 
         public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
-        public delegate void RemoteAsyncReqTuplesDelegate(IList<string> urls);
+        public delegate void RemoteAsyncReqTuplesDelegate(string receiver_routing, IList<string> receiver_urls);
         public delegate void RemoteAsyncProcessTuplesDelegate(IList<string> tuples);
 
         private TcpChannel channel;
@@ -77,6 +77,7 @@ namespace Operator
         private IList<string> notProcessedTuples = new List<string>();
 
         private IList<IRemoteOperator> receivers= new List<IRemoteOperator>();
+        string receiver_routing;
         private IRemotePuppetMaster puppet = null;
 
         private bool frozen;
@@ -129,7 +130,7 @@ namespace Operator
                     if (op == null)
                         throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + source);
                     RemoteAsyncReqTuplesDelegate remoteDel = new RemoteAsyncReqTuplesDelegate(op.requestTuples);
-                    IAsyncResult remoteResult = remoteDel.BeginInvoke(urls, null, null);
+                    IAsyncResult remoteResult = remoteDel.BeginInvoke(routing,urls, null, null);
                     //op.requestTuples(urls);
                 }
             }
@@ -168,8 +169,8 @@ namespace Operator
                         object resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod,null, ClassObj, args);
                         IList<string> result = (IList<string>)resultObject;
 
-                        foreach (string tuple in result) 
-                        Console.WriteLine("DEBUG:"+tuple);
+                        //foreach (string tuple in result) 
+                        //Console.WriteLine("DEBUG:"+tuple);
 
                         if (fullLoggingLevel)
                         {
@@ -184,7 +185,7 @@ namespace Operator
                         }
                         else
                         {
-                            if (routing.Equals(SysConfig.PRIMARY))
+                            if (receiver_routing.Equals(SysConfig.PRIMARY))
                             {
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
@@ -287,7 +288,8 @@ namespace Operator
                 Console.WriteLine("   State: Not Frozen.");
            
             Console.WriteLine("   Replication factory: " + repFact);
-            Console.WriteLine("   Routing: " + routing);
+            Console.WriteLine("   My Routing: " + routing);
+            Console.WriteLine("   Receiver Routing: " + receiver_routing);
             Console.Write("   Active Replicas: " );
             foreach (string url in urls)
                 Console.Write(url+"  ");
@@ -319,9 +321,10 @@ namespace Operator
         }
         #endregion
 
-        public void requestTuples(IList<string> urls)
+        public void requestTuples(string receiverRouting, IList<string> receiverUrls)
         {
-            foreach (string url in urls)
+            this.receiver_routing = receiverRouting;
+            foreach (string url in receiverUrls)
             {
                 channel = new TcpChannel();
                 IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
@@ -330,7 +333,7 @@ namespace Operator
                 receivers.Add(op);
                 if (notSentTuples.Count > 0)
                 {
-                    if (!routing.Equals(SysConfig.PRIMARY) || (routing.Equals(SysConfig.PRIMARY) && url.Equals(urls[0])))
+                    if (!this.receiver_routing.Equals(SysConfig.PRIMARY) || (this.receiver_routing.Equals(SysConfig.PRIMARY) && url.Equals(receiverUrls[0])))
                     {
                         RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                         IAsyncResult remoteResult = remoteDel.BeginInvoke(notSentTuples, null, null);

@@ -26,7 +26,7 @@ namespace Shared_Library
         void crash();
         void freeze();
         void unfreeze();
-        void requestTuples(IList<string> urls);
+        void requestTuples(string receiver_routing, IList<string> receiver_urls);
         void doProcessTuples(IList<string> tuples);
     }
 

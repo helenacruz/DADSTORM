@@ -75,7 +75,7 @@ namespace ProcessCreation
             }
             args += port+" "+sysConfig.Semantics+" "+sysConfig.LoggingLevel + " " + primary;
 
-            Console.WriteLine("Using the following parameters: "+args);
+            //Console.WriteLine("Using the following parameters: "+args);
             process.StartInfo.Arguments = args;
             process.Start();
             Console.WriteLine("Operator " + opName + " was created.");

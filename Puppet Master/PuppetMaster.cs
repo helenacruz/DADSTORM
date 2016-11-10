@@ -42,6 +42,8 @@ namespace PuppetMaster
 
         TcpChannel channel;
 
+        bool manualM = false;
+
         public PuppetMaster()
         {
             sysConfig = new SysConfig();
@@ -117,32 +119,38 @@ namespace PuppetMaster
                 else if (option == "start")
                 {
                     doStartCommand(lineArray, lineNr);
-                    Console.WriteLine(line);
+                    if(!manualM)
+                        Console.WriteLine(line);
                 }
                 else if (option == "status")
                 {
                     doStatusCommand(lineArray, lineNr);
-                    Console.WriteLine(line);
+                    if (!manualM)
+                        Console.WriteLine(line);
                 }
                 else if (option == "interval")
                 {
                     doIntervalCommand(lineArray, lineNr);
-                    Console.WriteLine(line);
+                    if (!manualM)
+                        Console.WriteLine(line);
                 }
                 else if (option == "crash")
                 {
                     doCrashCommand(lineArray, lineNr);
-                    Console.WriteLine(line);
+                    if (!manualM)
+                        Console.WriteLine(line);
                 }
                 else if (option == "freeze")
                 {
                     doFreezeCommand(lineArray, lineNr);
-                    Console.WriteLine(line);
+                    if (!manualM)
+                        Console.WriteLine(line);
                 }
                 else if (option == "unfreeze")
                 {
                     doUnfreezeCommand(lineArray, lineNr);
-                    Console.WriteLine(line);
+                    if (!manualM)
+                        Console.WriteLine(line);
                 }
                 else if (option == "wait")
                 {
@@ -304,8 +312,8 @@ namespace PuppetMaster
             if (line.Length != 2 || !Int32.TryParse(line[1], out ms))
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Wait x_ms");
-
-            Console.WriteLine(line[0]+" "+line[1]);
+            if (!manualM)
+                 Console.WriteLine(line[0]+" "+line[1]);
             System.Threading.Thread.Sleep(ms);
             
         }
@@ -530,6 +538,7 @@ namespace PuppetMaster
 
         private void manualMode()
         {
+            manualM = true;
             string command="";
             while (!command.ToLower().Equals("q"))
             {
