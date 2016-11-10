@@ -9,7 +9,7 @@ namespace Shared_Library
 
     public interface IRemoteProcessCreation
     {
-        void createOP(string opName, string port, SysConfig sysConfig, string pmurl, IList<string> sources, String rep_fact, String routing, IList<String> urls);
+        void createOP(string primary,string opName, string port, SysConfig sysConfig, string pmurl, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls);
     }
 
     public interface IRemotePuppetMaster

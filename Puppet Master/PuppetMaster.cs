@@ -23,7 +23,7 @@ namespace PuppetMaster
 
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
-        public delegate void RemoteAsyncCreateOpDelegate(string opName,string port,SysConfig sysConfig, string pmurl, IList<string> sources, String rep_fact, String routing, IList<String> urls);
+        public delegate void RemoteAsyncCreateOpDelegate(string primary,string opName,string port,SysConfig sysConfig, string pmurl, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls);
         public delegate void RemoteAsyncSendOpDelegate(byte[] code, string className, string method, IList<string> op_specs);
         public delegate void RemoteAsyncNoArgsOpDelegate();
         public delegate void RemoteAsyncIntervalOpDelegate(int ms);
@@ -32,9 +32,6 @@ namespace PuppetMaster
         private static String SCRIPT_FILE_PATH = @"../../../Script.txt";
         private static String LIB_OPERATORS_PATH = @"../../../LibOperator/bin/Debug/LibOperator.dll";
         private static String DEFAULT_METHOD = "CustomOperation";
-
-        private string semantics;
-        private string loggingLevel;
 
         private string pmurl;
 
@@ -326,7 +323,7 @@ namespace PuppetMaster
             int rep_fact=1;
             int op=-1;
             string routing = null;
-            IList<string> sources=null;
+            IList<IList<string>> sources=null;
             IList<string> addresses=null;
             IList<string> opSpecs=null;
             string type = null;
@@ -381,9 +378,10 @@ namespace PuppetMaster
             doCreateOperator(pmurl, ""+op, sources, ""+rep_fact, routing, addresses, type, opSpecs);
         }
 
-        private void doCreateOperator(string pmurl,  string id, IList<string> sources, String rep_fact, String routing, IList<String> urls, string type, IList<string> op_specs)
+        private void doCreateOperator(string pmurl,  string id, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls, string type, IList<string> op_specs)
         {
             IList<IRemoteOperator> replicas = new List<IRemoteOperator>();
+            string primary = "true";
 
             foreach (string url in urls)
             {
@@ -418,16 +416,13 @@ namespace PuppetMaster
                 }
 
                 RemoteAsyncCreateOpDelegate RemoteDel = new RemoteAsyncCreateOpDelegate(pcs.createOP);
-                IAsyncResult RemAr = RemoteDel.BeginInvoke(nameOp,port, sysConfig, pmurl, sources, rep_fact, routing, orderedUrls, null, null);
+                IAsyncResult RemAr = RemoteDel.BeginInvoke(primary,nameOp,port, sysConfig, pmurl, sources, rep_fact, routing, orderedUrls, null, null);
+                primary = "false";
 
                 IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), url);
                 if (op == null)
                     throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + url);
 
-                Console.WriteLine("xx" + pcs_address);
-                Console.WriteLine("xx" + nameOp);
-                Console.WriteLine("xx" + port);
-                Console.WriteLine("xx" + url);
                 byte[] code;
                 RemoteAsyncSendOpDelegate RemoteSendDel = new RemoteAsyncSendOpDelegate(op.SendOperator);
                 IAsyncResult RemSendAr;
@@ -459,12 +454,12 @@ namespace PuppetMaster
             operators.Add(Int32.Parse(id), replicas);
         }
 
-        private List<string> doInputOps(String[] line, int i)
+        private IList<IList<string>> doInputOps(String[] line, int i)
         {
             i++; // i is "sources"
 
             List<string> sources = new List<string>();
-            List<string> sources_processed = new List<string>();
+            IList<IList<string>> sources_processed = new List<IList<string>>();
             sources = line[i ].Split(',').ToList();
             foreach (string s in sources)
             {
@@ -475,10 +470,15 @@ namespace PuppetMaster
                     {
                         throw new ParseException("Invalid operator id. Must be OPn, where n is an integer.");
                     }
-                    sources_processed.Add(operators_addresses[op][0]);
+                    sources_processed.Add(operators_addresses[op]);
                 }
                 else
-                    sources_processed.Add(s);
+                {
+                    List<string> source = new List<string>();
+                    source.Add(s);
+                    sources_processed.Add(source);
+
+                }
             }
             return sources_processed;
         }
