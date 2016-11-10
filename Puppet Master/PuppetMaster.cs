@@ -147,7 +147,6 @@ namespace PuppetMaster
                 else if (option == "wait")
                 {
                     doWaitCommand(lineArray, lineNr);
-                    Console.WriteLine(line);
                 }
                 else if (option.StartsWith("op"))
                 {
@@ -305,6 +304,8 @@ namespace PuppetMaster
             if (line.Length != 2 || !Int32.TryParse(line[1], out ms))
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Wait x_ms");
+
+            Console.WriteLine(line[0]+" "+line[1]);
             System.Threading.Thread.Sleep(ms);
             
         }

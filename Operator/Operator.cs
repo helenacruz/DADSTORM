@@ -71,7 +71,7 @@ namespace Operator
         private string method;
         private IList<string> opSpecs;
         private string semantics;
-        private string loggingLevel;
+        private bool fullLoggingLevel;
 
         private IList<string> notSentTuples = new List<string>();
         private IList<string> notProcessedTuples = new List<string>();
@@ -92,8 +92,11 @@ namespace Operator
             this.port = port;
             this.frozen = false;
             this.semantics = semantics;
-            this.loggingLevel = loggingLevel;
 
+            this.fullLoggingLevel = true;
+            if (loggingLevel.Equals(SysConfig.LIGHT))
+                this.fullLoggingLevel = false;
+           
             this.primary = true;
             if (primary.ToLower().Equals("false"))
                 this.primary = false;
@@ -139,6 +142,7 @@ namespace Operator
 
         private bool processTuples(IList<string> tuples)
         {
+
             if (!canProcessTuples())
             {
                 foreach (string tuple in tuples) {
@@ -163,11 +167,15 @@ namespace Operator
                             args = new object[] { tuples };
                         object resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod,null, ClassObj, args);
                         IList<string> result = (IList<string>)resultObject;
-                        foreach (string tuple in result) 
-                        Console.WriteLine(tuple);
 
-                        RemoteAsyncLogDelegate RemoteDel = new RemoteAsyncLogDelegate(puppet.registerLog);
-                        IAsyncResult RemAr = RemoteDel.BeginInvoke(urls[0], result,null, null);
+                        foreach (string tuple in result) 
+                        Console.WriteLine("DEBUG:"+tuple);
+
+                        if (fullLoggingLevel)
+                        {
+                            RemoteAsyncLogDelegate RemoteDel = new RemoteAsyncLogDelegate(puppet.registerLog);
+                            IAsyncResult RemAr = RemoteDel.BeginInvoke(urls[0], result, null, null);
+                        }
 
                         if (receivers.Count==0 )
                         {
@@ -176,10 +184,10 @@ namespace Operator
                         }
                         else
                         {
-                            if (routing.ToLower().Equals(SysConfig.PRIMARY))
+                            if (routing.Equals(SysConfig.PRIMARY))
                             {
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(tuples, null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
                                 //receiver.doProcessTuples(result);
                             }
                         }
@@ -216,7 +224,7 @@ namespace Operator
                 {
                     if (!source[0].Contains("tcp://"))
                     {
-                        if (!routing.ToLower().Equals(SysConfig.PRIMARY) || (routing.ToLower().Equals(SysConfig.PRIMARY) && primary))
+                        if (!routing.Equals(SysConfig.PRIMARY) || (routing.Equals(SysConfig.PRIMARY) && primary))
                         {
                             string line;
                             StreamReader file;
@@ -322,7 +330,7 @@ namespace Operator
                 receivers.Add(op);
                 if (notSentTuples.Count > 0)
                 {
-                    if (!routing.ToLower().Equals(SysConfig.PRIMARY) || (routing.ToLower().Equals(SysConfig.PRIMARY) && url.Equals(urls[0])))
+                    if (!routing.Equals(SysConfig.PRIMARY) || (routing.Equals(SysConfig.PRIMARY) && url.Equals(urls[0])))
                     {
                         RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                         IAsyncResult remoteResult = remoteDel.BeginInvoke(notSentTuples, null, null);
