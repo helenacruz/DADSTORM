@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using System.Timers;
+using System.Windows.Forms;
 using System.Windows.Forms;
 
 namespace PuppetMaster
@@ -8,12 +8,13 @@ namespace PuppetMaster
     public partial class PuppetMasterUI : Form
     {
         private PuppetMaster pm;
-        private string logs="";
+        private string logs;
 
         public PuppetMasterUI()
         {
             InitializeComponent();
             pm = new PuppetMaster();
+            logs = "";
             pm.start();
             this.Result.Text = pm.getLogs();
             this.Result.SelectionStart = this.Result.Text.Length;
@@ -30,7 +31,7 @@ namespace PuppetMaster
 
                 await Task.Run(() => pm.readScriptFile());
 
-                System.Windows.Forms.Timer timer1 = new System.Windows.Forms.Timer();
+                Timer timer1 = new Timer();
                 timer1.Tick += new EventHandler(refreshLogs);
                 timer1.Interval = 1000; // in miliseconds
                 timer1.Start();
@@ -52,7 +53,7 @@ namespace PuppetMaster
             if (pm.finishedparsingScript())
                 scriptButton.Enabled = false;
 
-            System.Windows.Forms.Timer timer1 = new System.Windows.Forms.Timer();
+            Timer timer1 = new Timer();
             timer1.Tick += new EventHandler(refreshLogs);
             timer1.Interval = 1000; // in miliseconds
             timer1.Start();
@@ -61,10 +62,11 @@ namespace PuppetMaster
         private void refreshLogs(object sender, EventArgs e)
         {
             string refreshedLogs = pm.getLogs();
+
             if (!refreshedLogs.Equals(logs))
             {
                 logs = refreshedLogs;
-                this.Result.Text = pm.getLogs();
+                this.Result.Text = logs;
                 this.Result.SelectionStart = this.Result.Text.Length;
                 this.Result.ScrollToCaret();
             }

@@ -85,6 +85,7 @@ namespace PuppetMaster
         {
             return finishedScript;
         }          
+
         public void readScriptFile()
         {
             string log = "Reading script file...";
@@ -93,7 +94,6 @@ namespace PuppetMaster
             readCommands(SCRIPT_FILE_PATH);
         }
         
-       
         public void processOneMoreStep()
         {
             if (waitListCommands.Count > 0)
@@ -139,16 +139,6 @@ namespace PuppetMaster
             */
         }
 
-        public void makeOperatorsOutput()
-        {
-            IList<IRemoteOperator> lastReplica = operators[operators.Count];
-            foreach (IRemoteOperator op in lastReplica)
-            {
-                RemoteAsyncNoArgsOpDelegate RemoteSendDel = new RemoteAsyncNoArgsOpDelegate(op.makeAsOutputOperator);
-                IAsyncResult RemSendAr = RemoteSendDel.BeginInvoke(null, null);
-            }
-        }
-
         private void registerPM()
         {
             channel = new TcpChannel(SysConfig.PM_PORT);
@@ -171,7 +161,7 @@ namespace PuppetMaster
                 {
                     doCommandLine(line, lineNr++);
                 }
-                catch(ParseException e)
+                catch (ParseException e)
                 {
                     Console.WriteLine(e.Msg);
                 }
