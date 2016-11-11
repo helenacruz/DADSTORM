@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Forms;
 
 namespace PuppetMaster
 {
+    delegate void updateLogsHandler(object sender, UpdateLogsArgs e);
+
     public partial class PuppetMasterUI : Form
     {
         private PuppetMaster pm;
@@ -30,13 +31,8 @@ namespace PuppetMaster
                 scriptButton.Enabled = false;
 
                 await Task.Run(() => pm.readScriptFile());
-
-                Timer timer1 = new Timer();
-                timer1.Tick += new EventHandler(refreshLogs);
-                timer1.Interval = 1000; // in miliseconds
-                timer1.Start();
             }
-            catch(ParseException ex)
+            catch (ParseException ex)
             {
                 this.Result.Text = ex.Msg;
                 this.Result.SelectionStart = this.Result.Text.Length;
@@ -50,13 +46,9 @@ namespace PuppetMaster
             configButton.Enabled = false;
 
             await Task.Run(() => pm.processOneMoreStep());
+
             if (pm.finishedparsingScript())
                 scriptButton.Enabled = false;
-
-            Timer timer1 = new Timer();
-            timer1.Tick += new EventHandler(refreshLogs);
-            timer1.Interval = 1000; // in miliseconds
-            timer1.Start();
         }
 
         private void refreshLogs(object sender, EventArgs e)
@@ -72,6 +64,20 @@ namespace PuppetMaster
             }
         }
 
+        public void updateLogsUI(object sender, UpdateLogsArgs e)
+        {
+            if (this.InvokeRequired == false)
+            {
+                this.Result.AppendText(e.log);
+                this.Result.AppendText("\r\n");
+            }
+            else
+            {
+                updateLogsHandler updLogs = new updateLogsHandler(updateLogsUI);
+                Invoke(updLogs, new object[] { sender, e });
+            }
+        }
+
         private void Result_TextChanged(object sender, EventArgs e)
         {
 
@@ -84,11 +90,9 @@ namespace PuppetMaster
 
         private async void RunButton_Click(object sender, EventArgs e)
         {
-            await Task.Run(() => pm.enterCommand(commandTextBox.Text));
+            string command = commandTextBox.Text;
             commandTextBox.Text = "";
-            this.Result.Text = pm.getLogs();
-            this.Result.SelectionStart = this.Result.Text.Length;
-            this.Result.ScrollToCaret();
+            await Task.Run(() => pm.enterCommand(command));
         }
 
         private void PuppetMasterUI_FormClosing(object sender, FormClosingEventArgs e)

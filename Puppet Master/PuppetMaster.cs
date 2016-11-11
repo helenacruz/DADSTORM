@@ -12,18 +12,29 @@ using System.Windows.Forms;
 
 namespace PuppetMaster
 {
-    class Program
+    public class UpdateLogsArgs : EventArgs
     {
-        static void Main(string[] args)
+        public string log;
+
+        public UpdateLogsArgs(string log)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new PuppetMasterUI());
+            this.log = log;
         }
     }
 
     class PuppetMaster : MarshalByRefObject, IRemotePuppetMaster
     {
+        [STAThread]
+        static void Main(string[] args)
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            form = new PuppetMasterUI();
+            Application.Run(form);
+        }
+
+        private static PuppetMasterUI form;
+
         public delegate void RemoteAsyncCreateOpDelegate(string primary,string opName,string port,SysConfig sysConfig, string pmurl, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls);
         public delegate void RemoteAsyncSendOpDelegate(byte[] code, string className, string method, IList<string> op_specs);
         public delegate void RemoteAsyncNoArgsOpDelegate();
@@ -65,8 +76,28 @@ namespace PuppetMaster
 
         private void logInfo(string log)
         {
-            logs.Add(log);
-        }      
+            object sender = System.Threading.Thread.CurrentThread;
+            UpdateLogsArgs e;
+
+            if (form != null)
+            {
+                if (logs.Count > 0)
+                {
+                    foreach (string pendingLog in logs)
+                    {
+                        e = new UpdateLogsArgs(pendingLog);
+                        form.updateLogsUI(sender, e);
+                    }
+                    logs.Clear();
+                }
+                e = new UpdateLogsArgs(log);
+                form.updateLogsUI(sender, e);
+            }
+            else
+            {
+                logs.Add(log);
+            }
+        }
 
         public string getLogs()
         {
@@ -76,7 +107,11 @@ namespace PuppetMaster
             {
                 result += log + "\r\n";
             }
-            result.Remove(result.Length - 1);
+
+            if (result.Length > 0)
+            {
+                result.Remove(result.Length - 1);
+            }
 
             return result;
         }
@@ -98,11 +133,14 @@ namespace PuppetMaster
         {
             if (waitListCommands.Count > 0)
             {
-                enterCommand(waitListCommands[0]);
+                string command = waitListCommands[0];
                 waitListCommands.RemoveAt(0);
+                enterCommand(command);
             }
             else
+            {
                 finishedScript = true;
+            }
         }
 
         public void start()
@@ -118,10 +156,6 @@ namespace PuppetMaster
             logInfo(log);
 
             readCommands(CONFIG_FILE_PATH);
-            // Console.WriteLine("Reading script file...");
-            // Console.WriteLine("Waiting commands (type \"q\" to exit)");
-            // readCommands(SCRIPT_FILE_PATH);
-
             
             IList<IRemoteOperator> lastReplica = operators[operators.Count];
             foreach (IRemoteOperator op in lastReplica)
@@ -129,14 +163,7 @@ namespace PuppetMaster
                 RemoteAsyncNoArgsOpDelegate RemoteSendDel = new RemoteAsyncNoArgsOpDelegate(op.makeAsOutputOperator);
                 IAsyncResult RemSendAr = RemoteSendDel.BeginInvoke(null, null);
             }
-            
-            /*
-            manualMode();
-            Console.WriteLine("Shutingdown the network...");
-            shutDownAll();
-            Console.WriteLine("All processes was terminated.");
-            Console.ReadLine();
-            */
+           
         }
 
         private void registerPM()
@@ -179,11 +206,30 @@ namespace PuppetMaster
 
             while ((line = file.ReadLine()) != null)
             {
-                if (!line.StartsWith("%"))
+                if (!line.StartsWith("%") && !lineIsEmpty(line))
                 {
                     waitListCommands.Add(line);
+                    Console.WriteLine("***" + line + "***");
                 }
             }
+        }
+
+        private bool lineIsEmpty(string line)
+        {
+            if (line.StartsWith(Environment.NewLine))
+            {
+                return true;
+            }
+            if (line.StartsWith(" "))
+            {
+                return true;
+            }
+            if (line == "")
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private void doCommandLine(String line, int lineNr)
