@@ -190,7 +190,7 @@ namespace PuppetMaster
                 }
                 catch (ParseException e)
                 {
-                    Console.WriteLine(e.Msg);
+                    logInfo(e.Msg);
                 }
 
             }

@@ -8,10 +8,15 @@ namespace PuppetMaster
     delegate void blockButtonsHandler(object sender, EventArgs e);
     delegate void enableButtonsHandler(object sender, EventArgs e);
 
+
     public partial class PuppetMasterUI : Form
     {
         private PuppetMaster pm;
         private string logs;
+
+        private bool but1;
+        private bool but2;
+        private bool but3;
 
         public PuppetMasterUI()
         {
@@ -27,19 +32,11 @@ namespace PuppetMaster
 
         private async void button1_Click(object sender, EventArgs e)
         {
-            try
-            {
+           
                 configButton.Enabled = false;
                 scriptButton.Enabled = false;
 
                 await Task.Run(() => pm.readScriptFile());
-            }
-            catch (ParseException ex)
-            {
-                this.Result.Text = ex.Msg;
-                this.Result.SelectionStart = this.Result.Text.Length;
-                this.Result.ScrollToCaret();
-            }
             
         }
 
@@ -57,6 +54,10 @@ namespace PuppetMaster
         {
             if (this.InvokeRequired == false)
             {
+                but1 = configButton.Enabled;
+                but2 = scriptButton.Enabled;
+                but3 = RunButton.Enabled;
+
                 configButton.Enabled = false;
                 scriptButton.Enabled = false;
                 RunButton.Enabled = false;
@@ -72,9 +73,9 @@ namespace PuppetMaster
         {
             if (this.InvokeRequired == false)
             {
-                configButton.Enabled = true;
-                scriptButton.Enabled = true;
-                RunButton.Enabled = true;
+                configButton.Enabled = but1;
+                scriptButton.Enabled = but2;
+                RunButton.Enabled = but3;
             }
             else
             {
