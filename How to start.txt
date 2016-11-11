@@ -1,0 +1,3 @@
+The project can be started by running the multiple start projects:
+first, Process Creation Service and then Puppet Master.
+

@@ -47,6 +47,7 @@ namespace PuppetMaster
 
         private List<string> waitListCommands;
         private List<string> logs;
+        bool finishedScript = false;
 
         public PuppetMaster()
         {
@@ -79,7 +80,11 @@ namespace PuppetMaster
 
             return result;
         }
-          
+
+        public bool finishedparsingScript()
+        {
+            return finishedScript;
+        }          
         public void readScriptFile()
         {
             string log = "Reading script file...";
@@ -96,6 +101,8 @@ namespace PuppetMaster
                 enterCommand(waitListCommands[0]);
                 waitListCommands.RemoveAt(0);
             }
+            else
+                finishedScript = true;
         }
 
         public void start()
@@ -373,9 +380,15 @@ namespace PuppetMaster
                 throw new ParseException("Error parsing file in line " + lineNr +
                     ". The correct format is Crash process_name replica_number");
 
-            IRemoteOperator op = operators[opId][opReplica];
-            RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.crash);
-            IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
+            if(opId<=operators.Count && opReplica<= operators[opId].Count - 1)
+            {
+                IRemoteOperator op = operators[opId][opReplica];
+                RemoteAsyncNoArgsOpDelegate RemoteDel = new RemoteAsyncNoArgsOpDelegate(op.crash);
+                IAsyncResult RemAr = RemoteDel.BeginInvoke(null, null);
+            }
+            else
+                throw new ParseException("Error parsing file in line " + lineNr +
+               ". Wrong process_name or replica_number");
         }
 
         private void doFreezeCommand(string[] line, int lineNr)
@@ -414,6 +427,7 @@ namespace PuppetMaster
                     ". The correct format is Wait x_ms");
             if (!manualM)
                  Console.WriteLine(line[0]+" "+line[1]);
+
             System.Threading.Thread.Sleep(ms);
             
         }

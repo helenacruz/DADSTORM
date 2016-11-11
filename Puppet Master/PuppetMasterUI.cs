@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Windows.Forms;
 
 namespace PuppetMaster
@@ -7,6 +8,7 @@ namespace PuppetMaster
     public partial class PuppetMasterUI : Form
     {
         private PuppetMaster pm;
+        private string logs="";
 
         public PuppetMasterUI()
         {
@@ -21,18 +23,51 @@ namespace PuppetMaster
 
         private async void button1_Click(object sender, EventArgs e)
         {
-            await Task.Run(() => pm.readScriptFile());
-            this.Result.Text = pm.getLogs();
-            this.Result.SelectionStart = this.Result.Text.Length;
-            this.Result.ScrollToCaret();
+            try
+            {
+                configButton.Enabled = false;
+                scriptButton.Enabled = false;
+
+                await Task.Run(() => pm.readScriptFile());
+
+                System.Windows.Forms.Timer timer1 = new System.Windows.Forms.Timer();
+                timer1.Tick += new EventHandler(refreshLogs);
+                timer1.Interval = 1000; // in miliseconds
+                timer1.Start();
+            }
+            catch(ParseException ex)
+            {
+                this.Result.Text = ex.Msg;
+                this.Result.SelectionStart = this.Result.Text.Length;
+                this.Result.ScrollToCaret();
+            }
+            
         }
 
         private async void button2_Click(object sender, EventArgs e)
         {
+            configButton.Enabled = false;
+
             await Task.Run(() => pm.processOneMoreStep());
-            this.Result.Text = pm.getLogs();
-            this.Result.SelectionStart = this.Result.Text.Length;
-            this.Result.ScrollToCaret();
+            if (pm.finishedparsingScript())
+                scriptButton.Enabled = false;
+
+            System.Windows.Forms.Timer timer1 = new System.Windows.Forms.Timer();
+            timer1.Tick += new EventHandler(refreshLogs);
+            timer1.Interval = 1000; // in miliseconds
+            timer1.Start();
+        }
+
+        private void refreshLogs(object sender, EventArgs e)
+        {
+            string refreshedLogs = pm.getLogs();
+            if (!refreshedLogs.Equals(logs))
+            {
+                logs = refreshedLogs;
+                this.Result.Text = pm.getLogs();
+                this.Result.SelectionStart = this.Result.Text.Length;
+                this.Result.ScrollToCaret();
+            }
         }
 
         private void Result_TextChanged(object sender, EventArgs e)
