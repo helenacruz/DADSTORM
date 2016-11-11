@@ -103,6 +103,8 @@ namespace Operator
             if (primary.ToLower().Equals("false"))
                 this.primary = false;
 
+            cleanFile();
+
         }
 
         public void registerOP()
@@ -219,6 +221,11 @@ namespace Operator
                     file.WriteLine(line);
                 }
             }
+        }
+
+        public void cleanFile()
+        {
+            System.IO.File.WriteAllText(@"../../../Output.txt", string.Empty);
         }
 
         #region "Interface Methods"
