@@ -47,7 +47,10 @@ namespace PuppetMaster
             await Task.Run(() => pm.processOneMoreStep());
 
             if (pm.finishedparsingScript())
+            {
                 scriptButton.Enabled = false;
+                but3 = false;
+            }
         }
 
         public void blockButtons(object sender, EventArgs e)
