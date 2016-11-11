@@ -49,7 +49,7 @@ namespace PuppetMaster
             if (pm.finishedparsingScript())
             {
                 scriptButton.Enabled = false;
-                but3 = false;
+                but2 = false;
             }
         }
 
