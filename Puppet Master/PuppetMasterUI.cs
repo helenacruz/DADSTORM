@@ -5,6 +5,8 @@ using System.Windows.Forms;
 namespace PuppetMaster
 {
     delegate void updateLogsHandler(object sender, UpdateLogsArgs e);
+    delegate void blockButtonsHandler(object sender, EventArgs e);
+    delegate void enableButtonsHandler(object sender, EventArgs e);
 
     public partial class PuppetMasterUI : Form
     {
@@ -51,16 +53,33 @@ namespace PuppetMaster
                 scriptButton.Enabled = false;
         }
 
-        private void refreshLogs(object sender, EventArgs e)
+        public void blockButtons(object sender, EventArgs e)
         {
-            string refreshedLogs = pm.getLogs();
-
-            if (!refreshedLogs.Equals(logs))
+            if (this.InvokeRequired == false)
             {
-                logs = refreshedLogs;
-                this.Result.Text = logs;
-                this.Result.SelectionStart = this.Result.Text.Length;
-                this.Result.ScrollToCaret();
+                configButton.Enabled = false;
+                scriptButton.Enabled = false;
+                RunButton.Enabled = false;
+            }
+            else
+            {
+                blockButtonsHandler blButtons = new blockButtonsHandler(blockButtons);
+                Invoke(blButtons, new object[] { sender, e });
+            }
+        }
+
+        public void enableButtons(object sender, EventArgs e)
+        {
+            if (this.InvokeRequired == false)
+            {
+                configButton.Enabled = true;
+                scriptButton.Enabled = true;
+                RunButton.Enabled = true;
+            }
+            else
+            {
+                enableButtonsHandler enButtons = new enableButtonsHandler(enableButtons);
+                Invoke(enButtons, new object[] { sender, e });
             }
         }
 

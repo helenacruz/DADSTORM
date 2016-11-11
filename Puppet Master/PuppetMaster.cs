@@ -464,8 +464,12 @@ namespace PuppetMaster
             if (!manualM)
                  Console.WriteLine(line[0]+" "+line[1]);
 
+            object sender = System.Threading.Thread.CurrentThread;
+            EventArgs e = new EventArgs();
+
+            form.blockButtons(sender, e);
             System.Threading.Thread.Sleep(ms);
-            
+            form.enableButtons(sender, e);
         }
 
         private void doOperatorCommand(string[] line, int lineNr)
