@@ -41,7 +41,7 @@ namespace ProcessCreation
         }
 
         #region "Interface Methods"
-        public void createOP(string primary, string opName,string port,SysConfig sysConfig,string pmurl, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls)
+        public void createOP(string primary, string opName, string port, SysConfig sysConfig, string pmurl, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls, int repId, int random)
         {
             Console.WriteLine("Creating operator "+opName+" at "+urls[0]);
     
@@ -73,7 +73,7 @@ namespace ProcessCreation
                     args += s +",";
                 j += 1;
             }
-            args += port+" "+sysConfig.Semantics+" "+sysConfig.LoggingLevel + " " + primary;
+            args += port + " " + sysConfig.Semantics + " " + sysConfig.LoggingLevel + " " + primary + " " + repId + " " + random;
 
             //Console.WriteLine("Using the following parameters: "+args);
             process.StartInfo.Arguments = args;

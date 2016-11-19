@@ -21,8 +21,8 @@ namespace Operator
 
             Console.WriteLine("Starting Operator ...");
             Operator op;
-            if (args.Length==10)
-                op = new Operator(args[0],args[1], getListofLists(args[2]), args[3], args[4], getList(args[5]), Int32.Parse(args[6]),args[7],args[8],args[9]);
+            if (args.Length == 12)
+                op = new Operator(args[0], args[1], getListofLists(args[2]), args[3], args[4], getList(args[5]), Int32.Parse(args[6]), args[7], args[8], args[9], args[10], args[11]);
             else
                 throw new WrongOpSpecsException("The Operator must start with 7 arguments");
 
@@ -54,7 +54,7 @@ namespace Operator
     {
 
         public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
-        public delegate void RemoteAsyncReqTuplesDelegate(string receiver_routing, IList<string> receiver_urls);
+        public delegate void RemoteAsyncReqTuplesDelegate(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
         public delegate void RemoteAsyncProcessTuplesDelegate(IList<string> tuples);
 
         private TcpChannel channel;
@@ -83,8 +83,12 @@ namespace Operator
 
         private bool frozen;
         private bool primary;
+        private int repId;
+        private int random;
+        private int receiver_target;
 
-        public Operator( string pmurl, string opName, IList<IList<string>> sources, String repFact, String routing, List<String> urls, int port,string semantics, string loggingLevel, string primary) {
+        public Operator(string pmurl, string opName, IList<IList<string>> sources, String repFact, String routing, List<String> urls, int port, string semantics, string loggingLevel, string primary, string repId, string random)
+        {
             this.pmurl = pmurl;
             this.opName = opName;
             this.sources = sources;
@@ -94,6 +98,8 @@ namespace Operator
             this.port = port;
             this.frozen = false;
             this.semantics = semantics;
+            this.repId = Int32.Parse(repId);
+            this.random = Int32.Parse(random);
 
             this.fullLoggingLevel = true;
             if (loggingLevel.Equals(SysConfig.LIGHT))
@@ -124,7 +130,7 @@ namespace Operator
         private void sendRequestToSources(IList<string> opsAsSources)
         {
             //so o primario faz request às sources
-            if (primary)
+            if (primary && this.routing.Equals(SysConfig.PRIMARY) || repId == random && routing.Equals(SysConfig.RANDOM))
             {
                 foreach (string source in opsAsSources)
                 {
@@ -133,7 +139,7 @@ namespace Operator
                     if (op == null)
                         throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + source);
                     RemoteAsyncReqTuplesDelegate remoteDel = new RemoteAsyncReqTuplesDelegate(op.requestTuples);
-                    IAsyncResult remoteResult = remoteDel.BeginInvoke(routing,urls, null, null);
+                    IAsyncResult remoteResult = remoteDel.BeginInvoke(routing, random, urls, null, null);
                     //op.requestTuples(urls);
                 }
             }
@@ -199,6 +205,11 @@ namespace Operator
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
                                 //receiver.doProcessTuples(result);
                             }
+                            else if (receiver_routing.Equals(SysConfig.RANDOM)) //Random Routing
+                            {
+                                RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiver_target].doProcessTuples);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
+                            }
                         }
 
                         notProcessedTuples = new List<string>();
@@ -252,7 +263,7 @@ namespace Operator
                 {
                     if (!source[0].Contains("tcp://"))
                     {
-                        if (!routing.Equals(SysConfig.PRIMARY) || (routing.Equals(SysConfig.PRIMARY) && primary))
+                        if ((routing.Equals(SysConfig.PRIMARY) && primary) || (routing.Equals(SysConfig.RANDOM) && repId == random))
                         {
                             string line;
                             StreamReader file;
@@ -309,6 +320,9 @@ namespace Operator
             Console.WriteLine("   Class Name: " + className);
             Console.WriteLine("   Method: " + method);
             Console.WriteLine("   Primary: " + primary);
+            Console.WriteLine("   Replica number: " + repId);
+            Console.WriteLine("   Target replica: " + random);
+
             if (frozen)
                 Console.WriteLine("   State: Frozen.");
             else
@@ -349,9 +363,11 @@ namespace Operator
         }
         #endregion
 
-        public void requestTuples(string receiverRouting, IList<string> receiverUrls)
+        public void requestTuples(string receiverRouting, int receiverTarget, IList<string> receiverUrls)
         {
             this.receiver_routing = receiverRouting;
+            this.receiver_target = receiverTarget;
+
             foreach (string url in receiverUrls)
             {
                 channel = new TcpChannel();
@@ -361,11 +377,16 @@ namespace Operator
                 receivers.Add(op);
                 if (notSentTuples.Count > 0)
                 {
-                    if (!this.receiver_routing.Equals(SysConfig.PRIMARY) || (this.receiver_routing.Equals(SysConfig.PRIMARY) && url.Equals(receiverUrls[0])))
+                    if ((this.receiver_routing.Equals(SysConfig.PRIMARY) && url.Equals(receiverUrls[0])))
                     {
                         RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                         IAsyncResult remoteResult = remoteDel.BeginInvoke(notSentTuples, null, null);
                         //receiver.doProcessTuples(notSentTuples);
+                    }
+                    else if (url.Equals(receiverUrls[this.receiver_target]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
+                    {
+                        RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiverTarget].doProcessTuples);
+                        IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(notSentTuples, null, null);
                     }
                 }
             }

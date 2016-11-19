@@ -35,7 +35,7 @@ namespace PuppetMaster
 
         private static PuppetMasterUI form;
 
-        public delegate void RemoteAsyncCreateOpDelegate(string primary,string opName,string port,SysConfig sysConfig, string pmurl, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls);
+        public delegate void RemoteAsyncCreateOpDelegate(string primary, string opName, string port, SysConfig sysConfig, string pmurl, IList<IList<string>> sources, String rep_fact, String routing, IList<String> urls, int repId, int random);
         public delegate void RemoteAsyncSendOpDelegate(byte[] code, string className, string method, IList<string> op_specs);
         public delegate void RemoteAsyncNoArgsOpDelegate();
         public delegate void RemoteAsyncIntervalOpDelegate(int ms);
@@ -545,6 +545,11 @@ namespace PuppetMaster
         {
             IList<IRemoteOperator> replicas = new List<IRemoteOperator>();
             string primary = "true";
+            int repId = 0;
+
+            //Random generator
+            Random r = new Random();
+            int random = r.Next(urls.Count);
 
             foreach (string url in urls)
             {
@@ -579,8 +584,9 @@ namespace PuppetMaster
                 }
 
                 RemoteAsyncCreateOpDelegate RemoteDel = new RemoteAsyncCreateOpDelegate(pcs.createOP);
-                IAsyncResult RemAr = RemoteDel.BeginInvoke(primary,nameOp,port, sysConfig, pmurl, sources, rep_fact, routing, orderedUrls, null, null);
+                IAsyncResult RemAr = RemoteDel.BeginInvoke(primary, nameOp, port, sysConfig, pmurl, sources, rep_fact, routing, orderedUrls, repId, random, null, null);
                 primary = "false";
+                repId++;
 
                 IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(IRemoteOperator), url);
                 if (op == null)
