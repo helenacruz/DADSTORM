@@ -76,6 +76,8 @@ namespace Operator
 
         private IList<string> notSentTuples = new List<string>();
         private IList<string> notProcessedTuples = new List<string>();
+        private Dictionary<int, IList<string>> res = new Dictionary<int, IList<string>>();
+
 
         private IList<IRemoteOperator> receivers= new List<IRemoteOperator>();
         string receiver_routing;
@@ -130,8 +132,9 @@ namespace Operator
         private void sendRequestToSources(IList<string> opsAsSources)
         {
             //so o primario faz request às sources
-            if (primary && this.routing.Equals(SysConfig.PRIMARY) || repId == random && routing.Equals(SysConfig.RANDOM))
+            if (primary && this.routing.Equals(SysConfig.PRIMARY) || repId == random && routing.Equals(SysConfig.RANDOM) || routing.StartsWith(SysConfig.HASHING))
             {
+                Console.WriteLine("I requested tuples");
                 foreach (string source in opsAsSources)
                 {
                     channel = new TcpChannel();
@@ -210,6 +213,37 @@ namespace Operator
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiver_target].doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
                             }
+                            else if (receiver_routing.StartsWith(SysConfig.HASHING)) //Hashing Routing
+                            {
+                                Dictionary<int, IList<string>> new_res = new Dictionary<int, IList<string>>();
+                                string[] aux = this.receiver_routing.Split('(');
+                                int field = Int32.Parse(aux[1].First() + "");
+                                foreach (string tuple in result)
+                                {
+                                    string[] split = tuple.Split(',');
+                                    int replica = Math.Abs(split[field - 1].GetHashCode()) % Int32.Parse(this.repFact);
+                                    IList<string> set;
+                                    if (!(new_res.ContainsKey(replica)))
+                                    {
+                                        set = new List<string>();
+                                        set.Add(tuple);
+                                        new_res.Add(replica, set);
+                                    }
+                                    else
+                                    {
+                                        set = res[replica];
+                                        set.Add(tuple);
+                                        new_res[replica] = set;
+                                    }
+                                }
+
+                                this.res = new_res;
+                                foreach (int rep in res.Keys)
+                                {
+                                    RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[rep].doProcessTuples);
+                                    IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(res[rep], null, null);
+                                }
+                            }
                         }
 
                         notProcessedTuples = new List<string>();
@@ -263,15 +297,29 @@ namespace Operator
                 {
                     if (!source[0].Contains("tcp://"))
                     {
+                        string line;
+                        StreamReader file;
+                        file = new StreamReader("../../../Input/" + source[0]);
+                        List<string> tuples = new List<string>();
+
                         if ((routing.Equals(SysConfig.PRIMARY) && primary) || (routing.Equals(SysConfig.RANDOM) && repId == random))
                         {
-                            string line;
-                            StreamReader file;
-                            file = new StreamReader("../../../Input/" + source[0]);
-                            List<string> tuples = new List<string>();
                             while ((line = file.ReadLine()) != null)
                             {
                                 if (!line.StartsWith("%"))
+                                    tuples.Add(removeWhiteSpaces(line));
+                            }
+                            processTuples(tuples);
+                        }
+                        else if (routing.StartsWith(SysConfig.HASHING)) //HASHING
+                        {
+                            string[] aux = this.routing.Split('(');
+                            int field = Int32.Parse(aux[1].First()+"");
+                            while ((line = file.ReadLine()) != null)
+                            {
+                                string[] split = line.Split(',');
+                                int replica = Math.Abs(split[field - 1].GetHashCode()) % Int32.Parse(this.repFact);
+                                if (!line.StartsWith("%") && replica == this.repId)
                                     tuples.Add(removeWhiteSpaces(line));
                             }
                             processTuples(tuples);
@@ -368,6 +416,31 @@ namespace Operator
             this.receiver_routing = receiverRouting;
             this.receiver_target = receiverTarget;
 
+            //Dictionary for hashing routing
+            if (receiver_routing.StartsWith(SysConfig.HASHING) && this.res.Count==0)
+            {
+                string[] aux = this.receiver_routing.Split('(');
+                int field = Int32.Parse(aux[1].First()+"");
+                foreach (string tuple in notSentTuples)
+                {
+                    string[] split = tuple.Split(',');
+                    int replica = Math.Abs(split[field - 1].GetHashCode()) % receiverUrls.Count;
+                    IList<string> set;
+                    if (!(res.ContainsKey(replica)))
+                    {
+                        set = new List<string>();
+                        set.Add(tuple);
+                        res.Add(replica, set);
+                    }
+                    else
+                    {
+                        set = res[replica];
+                        set.Add(tuple);
+                        res[replica] = set;
+                    }
+                }
+            }
+
             foreach (string url in receiverUrls)
             {
                 channel = new TcpChannel();
@@ -385,8 +458,21 @@ namespace Operator
                     }
                     else if (url.Equals(receiverUrls[this.receiver_target]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
                     {
-                        RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiverTarget].doProcessTuples);
+                        RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                         IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(notSentTuples, null, null);
+                    }
+                    else if (this.receiver_routing.StartsWith(SysConfig.HASHING)) //HASHING ROUTING
+                    {
+                        foreach (int rep in res.Keys)
+                        {
+
+                            if (url.Equals(receiverUrls[rep]))
+                            {
+                                RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(res[rep], null, null);
+                            }
+                        }
+
                     }
                 }
             }
