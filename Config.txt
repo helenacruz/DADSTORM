@@ -15,8 +15,10 @@ LoggingLevel full
 
 OP1 input_ops tweeters.dat rep_fact 2 routing hashing(1) address tcp://localhost:11001/op,tcp://localhost:11002/op operator_spec FILTER 3,=,"www.tecnico.ulisboa.pt"
 
-OP2 input_ops OP1 rep_fact 2 routing primary address tcp://localhost:11003/op,tcp://localhost:11004/op operator_spec CUSTOM ../../../LibOperator/bin/Debug/LibOperator.dll,QueryFollowersFile,getFollowers 
+OP2 input_ops OP1 rep_fact 2 routing hashing(1) address tcp://localhost:11008/op,tcp://localhost:11009/op operator_spec DUP
 
-OP3 input_ops OP2 rep_fact 2 routing random address tcp://localhost:11005/op,tcp://localhost:11006/op operator_spec UNIQ 1
+OP3 input_ops OP2 rep_fact 2 routing primary address tcp://localhost:11003/op,tcp://localhost:11004/op operator_spec CUSTOM ../../../LibOperator/bin/Debug/LibOperator.dll,QueryFollowersFile,getFollowers 
 
-OP4 input_ops OP3 rep_fact 1 routing primary address tcp://localhost:11007/op operator_spec COUNT
+OP4 input_ops OP3 rep_fact 2 routing primary address tcp://localhost:11005/op,tcp://localhost:11006/op operator_spec UNIQ 1
+
+OP5 input_ops OP4 rep_fact 1 routing primary address tcp://localhost:11007/op operator_spec COUNT

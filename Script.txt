@@ -13,6 +13,7 @@ Start OP1
 Start OP2
 Start OP3
 Start OP4
+Start OP5
 
 Status
 % Crash OP1 0 crashes replica 0 of OP1

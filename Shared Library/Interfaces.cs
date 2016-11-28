@@ -29,6 +29,7 @@ namespace Shared_Library
         void requestTuples(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
         void doProcessTuples(IList<string> tuples);
         void makeAsOutputOperator();
+        void setPrimary(bool value);
     }
 
     public interface IOperator

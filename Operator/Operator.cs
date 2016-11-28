@@ -56,6 +56,8 @@ namespace Operator
         public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
         public delegate void RemoteAsyncReqTuplesDelegate(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
         public delegate void RemoteAsyncProcessTuplesDelegate(IList<string> tuples);
+        public delegate void RemoteAsyncSetPrimaryDelegate(bool value);
+
 
         private TcpChannel channel;
 
@@ -132,9 +134,8 @@ namespace Operator
         private void sendRequestToSources(IList<string> opsAsSources)
         {
             //so o primario faz request às sources
-            if (primary && this.routing.Equals(SysConfig.PRIMARY) || repId == random && routing.Equals(SysConfig.RANDOM) || routing.StartsWith(SysConfig.HASHING))
+            if (primary && this.routing.Equals(SysConfig.PRIMARY) || repId == random && routing.Equals(SysConfig.RANDOM) || primary && routing.StartsWith(SysConfig.HASHING))
             {
-                Console.WriteLine("I requested tuples");
                 foreach (string source in opsAsSources)
                 {
                     channel = new TcpChannel();
@@ -361,6 +362,11 @@ namespace Operator
             System.Threading.Thread.Sleep(milliseconds);
         }
 
+        public void setPrimary(bool value)
+        {
+            primary = value;
+        }
+
         public void status()
         {
             Console.WriteLine("");
@@ -395,7 +401,20 @@ namespace Operator
         public void crash()
         {
             // for console applications
-            System.Environment.Exit(0);
+            int i = 1;
+            for (string url = urls[i]; i < urls.Count; i++, url = urls[i])
+            {
+                channel = new TcpChannel();
+                IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
+                if (op == null)
+                {
+                    continue;
+                }
+                RemoteAsyncSetPrimaryDelegate RemoteDel = new RemoteAsyncSetPrimaryDelegate(op.setPrimary);
+                IAsyncResult RemAr = RemoteDel.BeginInvoke(true, null, null);
+                break;
+            }
+                System.Environment.Exit(0);
         }
 
         public void freeze()
@@ -417,7 +436,7 @@ namespace Operator
             this.receiver_target = receiverTarget;
 
             //Dictionary for hashing routing
-            if (receiver_routing.StartsWith(SysConfig.HASHING) && this.res.Count==0)
+            if (receiver_routing.StartsWith(SysConfig.HASHING) && this.res.Count==0 && notSentTuples.Count!=0)
             {
                 string[] aux = this.receiver_routing.Split('(');
                 int field = Int32.Parse(aux[1].First()+"");
@@ -440,7 +459,7 @@ namespace Operator
                     }
                 }
             }
-
+           
             foreach (string url in receiverUrls)
             {
                 channel = new TcpChannel();
@@ -465,14 +484,14 @@ namespace Operator
                     {
                         foreach (int rep in res.Keys)
                         {
-
                             if (url.Equals(receiverUrls[rep]))
                             {
+                                Console.WriteLine("enviei ");
+                                Console.WriteLine(rep+ " ");
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(res[rep], null, null);
                             }
                         }
-
                     }
                 }
             }
