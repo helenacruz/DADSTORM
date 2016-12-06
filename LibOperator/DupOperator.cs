@@ -9,7 +9,7 @@ namespace LibOperator
 {
     public class DupOperator : IOperator
     {
-        public IList<string> CustomOperation(IList<string> candidatTuples, IList<string> opSpecs)
+        public IList<IList<string>> CustomOperation(IList<IList<string>> candidatTuples, IList<string> opSpecs)
         {
             if (opSpecs != null)
                 throw new WrongOpSpecsException("Dup Operator Specification has not arguments.");

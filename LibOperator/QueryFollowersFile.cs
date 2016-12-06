@@ -10,26 +10,28 @@ namespace LibOperator
 {
     public class QueryFollowersFile
     {
-        public IList<string> getFollowers(IList<string> candidatTuples)
+        public IList<IList<string>> getFollowers(IList<IList<string>> candidatTuples)
         {
-            IList<string> result = new List<string>();
+            IList<IList<string>> result = new List<IList<string>>();
             StreamReader file = new StreamReader("../../../Input/followers.dat");
-            List<string> followers_tuples = new List<string>();
+            IList<IList<string>> followers_tuples = new List<IList<string>>();
             string line = "";
             while ((line = file.ReadLine()) != null)
             {
                 if (!line.StartsWith("%"))
                 {
-                    followers_tuples.Add(removeWhiteSpaces(line));
+                    string[] splited_follower = removeWhiteSpaces(line).Split(',');
+                    IList<String> res = new List<String>();
+                    foreach (string s in splited_follower)
+                        res.Add(s);
+                    followers_tuples.Add(res);
                 }
             }
-            foreach (string candidat_tuple in candidatTuples)
+            foreach (IList<string> candidat_tuple in candidatTuples)
             {
-                string[] splited_candidat = candidat_tuple.Split(',');
-                foreach (string followers_tuple in followers_tuples)
+                foreach (IList<string> followers_tuple in followers_tuples)
                 {
-                    string[] splited_follower = followers_tuple.Split(',');
-                    if (splited_candidat[1].Equals(splited_follower[0]))
+                    if (candidat_tuple[1].Equals(followers_tuple[0]))
                         result.Add(followers_tuple);
                 }
             }

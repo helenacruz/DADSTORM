@@ -9,9 +9,9 @@ namespace LibOperator
 {
     public class FilterOperator : IOperator
     {
-        public IList<string> CustomOperation(IList<string> candidatTuples, IList<string> opSpecs)
+        public IList<IList<string>> CustomOperation(IList<IList<string>> candidatTuples, IList<string> opSpecs)
         {
-            IList<string> result = new List<string>();
+            IList<IList<string>> result = new List<IList<string>>();
             int field_number;
             if (opSpecs.Count!=3 || opSpecs[2].Equals(""))
                 throw new WrongOpSpecsException("Filter Operator Specification needs 3 arguments.");
@@ -20,24 +20,23 @@ namespace LibOperator
             if(!opSpecs[1].Equals("=") && !opSpecs[1].Equals("<") && !opSpecs[1].Equals(">"))
                 throw new WrongOpSpecsException("Filter Operator Specification need to be = or < or >.");
 
-            foreach (string candidat_tuple in candidatTuples)
+            foreach (IList<string> candidat_tuple in candidatTuples)
             {
-                string[] splited_candidat = candidat_tuple.Split(',');
                 if (opSpecs[1].Equals("="))
                 {
-                    if (splited_candidat[field_number - 1].Equals(opSpecs[2]))
+                    if (candidat_tuple[field_number - 1].Equals(opSpecs[2]))
                         result.Add(candidat_tuple);
                 }    
                 else if (opSpecs[1].Equals("<"))
                 {
-                    Version a = new Version(splited_candidat[field_number - 1]);
+                    Version a = new Version(candidat_tuple[field_number - 1]);
                     Version b = new Version(opSpecs[2]);
                     if (a<b)
                         result.Add(candidat_tuple);
                 }
                 else
                 {
-                    Version a = new Version(splited_candidat[field_number - 1]);
+                    Version a = new Version(candidat_tuple[field_number - 1]);
                     Version b = new Version(opSpecs[2]);
                     if (a > b)
                         result.Add(candidat_tuple);

@@ -27,14 +27,14 @@ namespace Shared_Library
         void freeze();
         void unfreeze();
         void requestTuples(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
-        void doProcessTuples(IList<string> tuples);
+        void doProcessTuples(IList<IList<string>> tuples);
         void makeAsOutputOperator();
         void setPrimary(bool value);
     }
 
     public interface IOperator
     {
-        IList<string> CustomOperation(IList<string> tuples, IList<string> op_specs);
+        IList<IList<string>> CustomOperation(IList<IList<string>> tuples, IList<string> op_specs);
     }
 
 }

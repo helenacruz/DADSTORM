@@ -55,7 +55,7 @@ namespace Operator
 
         public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
         public delegate void RemoteAsyncReqTuplesDelegate(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
-        public delegate void RemoteAsyncProcessTuplesDelegate(IList<string> tuples);
+        public delegate void RemoteAsyncProcessTuplesDelegate(IList<IList<string>> tuples);
         public delegate void RemoteAsyncSetPrimaryDelegate(bool value);
 
 
@@ -76,9 +76,9 @@ namespace Operator
         private string semantics;
         private bool fullLoggingLevel;
 
-        private IList<string> notSentTuples = new List<string>();
-        private IList<string> notProcessedTuples = new List<string>();
-        private Dictionary<int, IList<string>> res = new Dictionary<int, IList<string>>();
+        private IList<IList<string>> notSentTuples = new List<IList<string>>();
+        private IList<IList<string>> notProcessedTuples = new List<IList<string>>();
+        private Dictionary<int, IList<IList<string>>> res = new Dictionary<int, IList<IList<string>>>();
 
 
         private IList<IRemoteOperator> receivers= new List<IRemoteOperator>();
@@ -154,21 +154,23 @@ namespace Operator
             return frozen == false;
         }
 
-        private bool processTuples(IList<string> tuples)
+        private bool processTuples(IList<IList<string>> tuples)
         {
 
             if (!canProcessTuples())
             {
-                foreach (string tuple in tuples) {
+                foreach (IList<string> tuple in tuples) {
                     notProcessedTuples.Add(tuple);
                 }
                
                 return false;
             }
-
             Assembly assembly = Assembly.Load(this.opTypeCode);
+            Console.WriteLine("aa"+assembly);
             foreach (Type type in assembly.GetTypes())
             {
+                Console.WriteLine("loloooooooooooooooooo");
+
                 if (type.IsClass == true)
                 {
                     if (type.FullName.EndsWith("." + this.className))
@@ -180,25 +182,42 @@ namespace Operator
                         else
                             args = new object[] { tuples };
                         object resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod,null, ClassObj, args);
-                        IList<string> result = (IList<string>)resultObject;
+                        IList<IList<string>> result = (IList<IList<string>>)resultObject;
 
-                        //foreach (string tuple in result) 
-                        //Console.WriteLine("DEBUG:"+tuple);
+                        foreach (IList<string> tuple in result)
+                        {
+                            string res = "";
+                            foreach (string s in tuple)
+                                res += s + ",";
+                            Console.WriteLine("DEBUG:" + res);
+                        }
+                            
 
                         if (fullLoggingLevel)
                         {
                             RemoteAsyncLogDelegate RemoteDel = new RemoteAsyncLogDelegate(puppet.registerLog);
-                            IAsyncResult RemAr = RemoteDel.BeginInvoke(urls[0], result, null, null);
+                            //converting to puppet master format
+                            IList<string> res = new List<string>();
+                            foreach (IList<string> l in result)
+                            {
+                                String temp = "";
+                                if (l.Count > 0)
+                                    temp += l[0];
+                                for(int i=1;i<l.Count;i++)
+                                    temp += ","+l[i];
+                                res.Add(temp);
+                            }
+                            IAsyncResult RemAr = RemoteDel.BeginInvoke(urls[0], res, null, null);
                         }
 
                         if (receivers.Count==0 )
                         {
-                            foreach (string tuple in result)
+                            foreach (IList<string> tuple in result)
                                 notSentTuples.Add(tuple);
                             if (finalOperator && notSentTuples.Count>0)
                             {
                                 outputToFile(notSentTuples);
-                                notSentTuples = new List<string>();
+                                notSentTuples = new List<IList<string>>();
                             }
                         }
                         else
@@ -216,17 +235,16 @@ namespace Operator
                             }
                             else if (receiver_routing.StartsWith(SysConfig.HASHING)) //Hashing Routing
                             {
-                                Dictionary<int, IList<string>> new_res = new Dictionary<int, IList<string>>();
+                                Dictionary<int, IList<IList<string>>> new_res = new Dictionary<int, IList<IList<string>>>();
                                 string[] aux = this.receiver_routing.Split('(');
                                 int field = Int32.Parse(aux[1].First() + "");
-                                foreach (string tuple in result)
+                                foreach (IList<string> tuple in result)
                                 {
-                                    string[] split = tuple.Split(',');
-                                    int replica = Math.Abs(split[field - 1].GetHashCode()) % Int32.Parse(this.repFact);
-                                    IList<string> set;
+                                    int replica = Math.Abs(tuple[field - 1].GetHashCode()) % Int32.Parse(this.repFact);
+                                    IList<IList<string>> set;
                                     if (!(new_res.ContainsKey(replica)))
                                     {
-                                        set = new List<string>();
+                                        set = new List<IList<string>>();
                                         set.Add(tuple);
                                         new_res.Add(replica, set);
                                     }
@@ -247,7 +265,7 @@ namespace Operator
                             }
                         }
 
-                        notProcessedTuples = new List<string>();
+                        notProcessedTuples = new List<IList<string>>();
                         return true;
                     }
                 }
@@ -255,15 +273,18 @@ namespace Operator
             throw (new System.Exception("could not invoke method"));                
         }
 
-        public void outputToFile(IList<string> candidatTuples)
+        public void outputToFile(IList<IList<string>> candidatTuples)
         {
             string outputFile = @"../../../Output.txt";
 
             using (System.IO.StreamWriter file =
             new System.IO.StreamWriter(outputFile, true))
             {
-                foreach (string line in candidatTuples)
+                foreach (IList<string> tuple in candidatTuples)
                 {
+                    String line = "";
+                    foreach (string s in tuple)
+                        line += tuple;
                     file.WriteLine(line);
                 }
             }
@@ -301,14 +322,21 @@ namespace Operator
                         string line;
                         StreamReader file;
                         file = new StreamReader("../../../Input/" + source[0]);
-                        List<string> tuples = new List<string>();
+                        IList<IList<string>> tuples = new List<IList<string>>();
 
                         if ((routing.Equals(SysConfig.PRIMARY) && primary) || (routing.Equals(SysConfig.RANDOM) && repId == random))
                         {
                             while ((line = file.ReadLine()) != null)
                             {
                                 if (!line.StartsWith("%"))
-                                    tuples.Add(removeWhiteSpaces(line));
+                                {
+                                    string[] splited = removeWhiteSpaces(line).Split(',');
+                                    IList<string> l = new List<string>();
+                                    foreach (string s in splited)
+                                        l.Add(s);
+                                    tuples.Add(l);
+
+                                }
                             }
                             processTuples(tuples);
                         }
@@ -321,7 +349,13 @@ namespace Operator
                                 string[] split = line.Split(',');
                                 int replica = Math.Abs(split[field - 1].GetHashCode()) % Int32.Parse(this.repFact);
                                 if (!line.StartsWith("%") && replica == this.repId)
-                                    tuples.Add(removeWhiteSpaces(line));
+                                {
+                                    string[] splited = removeWhiteSpaces(line).Split(',');
+                                    IList<string> l = new List<string>();
+                                    foreach (string s in splited)
+                                        l.Add(s);
+                                    tuples.Add(l);
+                                }
                             }
                             processTuples(tuples);
                         }
@@ -391,8 +425,15 @@ namespace Operator
                 Console.Write(url+"  ");
             Console.WriteLine("");
             Console.WriteLine("   Not processed Tuples: ");
-            foreach (string tuple in notProcessedTuples)
-                Console.WriteLine("      "+tuple);
+            foreach (IList<string> tuple in notProcessedTuples)
+            {
+                string res = "";
+                if (tuple.Count > 0)
+                    res += tuple[0];
+                for (int i = 1; i < tuple.Count; i++)
+                    res += "," + tuple[i];
+                Console.WriteLine("      " + res);
+            }
             Console.WriteLine("");
             Console.WriteLine("End of status.");
             Console.WriteLine("");
@@ -440,14 +481,13 @@ namespace Operator
             {
                 string[] aux = this.receiver_routing.Split('(');
                 int field = Int32.Parse(aux[1].First()+"");
-                foreach (string tuple in notSentTuples)
+                foreach (List<string> tuple in notSentTuples)
                 {
-                    string[] split = tuple.Split(',');
-                    int replica = Math.Abs(split[field - 1].GetHashCode()) % receiverUrls.Count;
-                    IList<string> set;
+                    int replica = Math.Abs(tuple[field - 1].GetHashCode()) % receiverUrls.Count;
+                    IList<IList<string>> set;
                     if (!(res.ContainsKey(replica)))
                     {
-                        set = new List<string>();
+                        set = new List<IList<string>>();
                         set.Add(tuple);
                         res.Add(replica, set);
                     }
@@ -498,7 +538,7 @@ namespace Operator
 
         }
 
-        public void doProcessTuples(IList<string> tuples)
+        public void doProcessTuples(IList<IList<string>> tuples)
         {
             processTuples(tuples);
         }
@@ -507,7 +547,7 @@ namespace Operator
         {
             finalOperator = true;
             outputToFile(notSentTuples);
-            notSentTuples = new List<string>();
+            notSentTuples = new List<IList<string>>();
         }
 
 
