@@ -35,7 +35,7 @@ namespace LibOperator
                         result.Add(followers_tuple);
                 }
             }
-                return result;
+            return result;
         }
 
         private string removeWhiteSpaces(string s)

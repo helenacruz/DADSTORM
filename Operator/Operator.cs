@@ -166,30 +166,43 @@ namespace Operator
                 return false;
             }
             Assembly assembly = Assembly.Load(this.opTypeCode);
-            Console.WriteLine("aa"+assembly);
+           
             foreach (Type type in assembly.GetTypes())
             {
-                Console.WriteLine("loloooooooooooooooooo");
-
                 if (type.IsClass == true)
                 {
+
                     if (type.FullName.EndsWith("." + this.className))
                     {
                         object ClassObj = Activator.CreateInstance(type);
                         object[] args;
-                        if (className.Equals("UniqueOperator") || className.Equals("FilterOperator") || className.Equals("CountOperator") || className.Equals("DupOperator"))
-                            args = new object[] { tuples,this.opSpecs };
+                        object resultObject;
+                        IList<IList<string>> result = new List<IList<string>>();
+
+                        if (className.Equals("UniqueOperator") || className.Equals("FilterOperator") || className.Equals("CountOperator") || className.Equals("DupOperator")) {
+                            args = new object[] { tuples, this.opSpecs };
+                            resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod, null, ClassObj, args);
+                            result = (IList<IList<string>>)resultObject;
+                        }
                         else
-                            args = new object[] { tuples };
-                        object resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod,null, ClassObj, args);
-                        IList<IList<string>> result = (IList<IList<string>>)resultObject;
+                        {
+                            foreach (IList<string> tuple in tuples)
+                            {
+                                args = new object[] { tuple };
+                                resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod, null, ClassObj, args);
+                                IList<IList<string>> temp = (IList<IList<string>>)resultObject;
+                                foreach (List<string> t in temp)
+                                    result.Add(t);
+                            }
+
+                        }
 
                         foreach (IList<string> tuple in result)
                         {
                             string res = "";
                             foreach (string s in tuple)
                                 res += s + ",";
-                            Console.WriteLine("DEBUG:" + res);
+                            //Console.WriteLine("DEBUG:" + res);
                         }
                             
 
@@ -216,7 +229,7 @@ namespace Operator
                                 notSentTuples.Add(tuple);
                             if (finalOperator && notSentTuples.Count>0)
                             {
-                                outputToFile(notSentTuples);
+                                //outputToFile(notSentTuples);
                                 notSentTuples = new List<IList<string>>();
                             }
                         }
@@ -546,7 +559,7 @@ namespace Operator
         public void makeAsOutputOperator()
         {
             finalOperator = true;
-            outputToFile(notSentTuples);
+            //outputToFile(notSentTuples);
             notSentTuples = new List<IList<string>>();
         }
 
