@@ -55,7 +55,8 @@ namespace Operator
 
         public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
         public delegate void RemoteAsyncReqTuplesDelegate(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
-        public delegate void RemoteAsyncProcessTuplesDelegate(IList<IList<string>> tuples);
+        public delegate void RemoteAsyncProcessTuplesDelegate(String machine, string seq, IList<IList<string>> tuples);
+        public delegate void RemoteAsyncAckTuplesDelegate(string seq);
         public delegate void RemoteAsyncSetPrimaryDelegate(bool value);
 
 
@@ -75,10 +76,15 @@ namespace Operator
         private IList<string> opSpecs;
         private string semantics;
         private bool fullLoggingLevel;
+        private int seq=0;
 
-        private IList<IList<string>> notSentTuples = new List<IList<string>>();
-        private IList<IList<string>> notProcessedTuples = new List<IList<string>>();
+        private Dictionary<string,IList<IList<string>>> notSentTuples = new Dictionary<string,IList<IList<string>>>();
+        private Dictionary<string,IList<IList<string>>> notProcessedTuples = new Dictionary<string,IList<IList<string>>>();
         private Dictionary<int, IList<IList<string>>> res = new Dictionary<int, IList<IList<string>>>();
+
+        private Dictionary<string, IList<IList<string>>> not_acked = new Dictionary<string, IList<IList<string>>>();
+        private Dictionary<string, string> relationingSequences = new Dictionary<string, string>();
+        //mySequenceNumber--Source sequence number
 
 
         private IList<IRemoteOperator> receivers= new List<IRemoteOperator>();
@@ -154,15 +160,12 @@ namespace Operator
             return frozen == false;
         }
 
-        private bool processTuples(IList<IList<string>> tuples)
+        private bool processTuples(string machine,string machine_seq,IList<IList<string>> tuples)
         {
 
             if (!canProcessTuples())
             {
-                foreach (IList<string> tuple in tuples) {
-                    notProcessedTuples.Add(tuple);
-                }
-               
+                notProcessedTuples.Add(machine_seq + ";" + machine, tuples);
                 return false;
             }
             Assembly assembly = Assembly.Load(this.opTypeCode);
@@ -225,26 +228,35 @@ namespace Operator
 
                         if (receivers.Count==0 )
                         {
-                            foreach (IList<string> tuple in result)
-                                notSentTuples.Add(tuple);
+                            notSentTuples.Add(machine_seq+";"+machine, result);
                             if (finalOperator && notSentTuples.Count>0)
                             {
+                                sendAckToPrevious(machine, machine_seq);
                                 //outputToFile(notSentTuples);
-                                notSentTuples = new List<IList<string>>();
+                                notSentTuples = new Dictionary<string,IList<IList<string>>>();
                             }
                         }
                         else
                         {
                             if (receiver_routing.Equals(SysConfig.PRIMARY))
                             {
+                                relationingSequences.Add("" + seq, "" + machine_seq);
+                                not_acked.Add(seq + ";" + machine,result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0],""+seq,result, null, null);
+                                seq += 1;
                                 //receiver.doProcessTuples(result);
                             }
                             else if (receiver_routing.Equals(SysConfig.RANDOM)) //Random Routing
                             {
+                                Random r = new Random();
+                                receiver_target = r.Next() % receivers.Count();
+
+                                relationingSequences.Add("" + seq, "" + machine_seq);
+                                not_acked.Add(seq + ";" + machine,result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiver_target].doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], ""+seq, result, null, null);
+                                seq += 1;
                             }
                             else if (receiver_routing.StartsWith(SysConfig.HASHING)) //Hashing Routing
                             {
@@ -272,13 +284,16 @@ namespace Operator
                                 this.res = new_res;
                                 foreach (int rep in res.Keys)
                                 {
+                                    relationingSequences.Add("" + seq, "" + machine_seq);
+                                    not_acked.Add(seq + ";" + machine, res[rep]);
                                     RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[rep].doProcessTuples);
-                                    IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(res[rep], null, null);
+                                    IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], ""+seq, res[rep], null, null);
+                                    seq += 1;
                                 }
                             }
                         }
 
-                        notProcessedTuples = new List<IList<string>>();
+                        notProcessedTuples = new Dictionary<string,IList<IList<string>>>();
                         return true;
                     }
                 }
@@ -351,7 +366,8 @@ namespace Operator
 
                                 }
                             }
-                            processTuples(tuples);
+                            processTuples(this.urls[0],""+seq,tuples);
+                            seq += 1;
                         }
                         else if (routing.StartsWith(SysConfig.HASHING)) //HASHING
                         {
@@ -370,7 +386,8 @@ namespace Operator
                                     tuples.Add(l);
                                 }
                             }
-                            processTuples(tuples);
+                            processTuples(this.urls[0], "" + seq,tuples);
+                            seq += 1;
                         }
                     }
                     else
@@ -438,14 +455,17 @@ namespace Operator
                 Console.Write(url+"  ");
             Console.WriteLine("");
             Console.WriteLine("   Not processed Tuples: ");
-            foreach (IList<string> tuple in notProcessedTuples)
+            foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
             {
-                string res = "";
-                if (tuple.Count > 0)
-                    res += tuple[0];
-                for (int i = 1; i < tuple.Count; i++)
-                    res += "," + tuple[i];
-                Console.WriteLine("      " + res);
+                foreach (IList<string> tuple in entry.Value)
+                {
+                    string res = "";
+                    if (tuple.Count > 0)
+                        res += tuple[0];
+                    for (int i = 1; i < tuple.Count; i++)
+                        res += "," + tuple[i];
+                    Console.WriteLine("      " + res);
+                }
             }
             Console.WriteLine("");
             Console.WriteLine("End of status.");
@@ -479,8 +499,15 @@ namespace Operator
         public void unfreeze()
         {
             frozen = false;
-            if (notProcessedTuples.Count>0)
-                processTuples(notProcessedTuples);
+            if (notProcessedTuples.Count > 0) {
+                foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                {
+                    string machine = entry.Key.Split(';')[0];
+                    string sequence = entry.Key.Split(';')[1];
+                    processTuples(machine, sequence, entry.Value);
+
+                }
+            }
         }
         #endregion
 
@@ -490,27 +517,30 @@ namespace Operator
             this.receiver_target = receiverTarget;
 
             //Dictionary for hashing routing
-            if (receiver_routing.StartsWith(SysConfig.HASHING) && this.res.Count==0 && notSentTuples.Count!=0)
+            if (receiver_routing.StartsWith(SysConfig.HASHING) && this.res.Count == 0 && notSentTuples.Count != 0)
             {
                 string[] aux = this.receiver_routing.Split('(');
-                int field = Int32.Parse(aux[1].First()+"");
-                foreach (List<string> tuple in notSentTuples)
-                {
-                    int replica = Math.Abs(tuple[field - 1].GetHashCode()) % receiverUrls.Count;
-                    IList<IList<string>> set;
-                    if (!(res.ContainsKey(replica)))
+                int field = Int32.Parse(aux[1].First() + "");
+
+                foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples) { 
+                    foreach (List<string> tuple in entry.Value)
                     {
-                        set = new List<IList<string>>();
-                        set.Add(tuple);
-                        res.Add(replica, set);
-                    }
-                    else
-                    {
-                        set = res[replica];
-                        set.Add(tuple);
-                        res[replica] = set;
-                    }
+                        int replica = Math.Abs(tuple[field - 1].GetHashCode()) % receiverUrls.Count;
+                        IList<IList<string>> set;
+                        if (!(res.ContainsKey(replica)))
+                        {
+                            set = new List<IList<string>>();
+                            set.Add(tuple);
+                            res.Add(replica, set);
+                        }
+                        else
+                        {
+                            set = res[replica];
+                            set.Add(tuple);
+                            res[replica] = set;
+                        }
                 }
+            }
             }
            
             foreach (string url in receiverUrls)
@@ -524,14 +554,32 @@ namespace Operator
                 {
                     if ((this.receiver_routing.Equals(SysConfig.PRIMARY) && url.Equals(receiverUrls[0])))
                     {
-                        RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                        IAsyncResult remoteResult = remoteDel.BeginInvoke(notSentTuples, null, null);
-                        //receiver.doProcessTuples(notSentTuples);
+                        foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                        {
+
+                            string machine = entry.Key.Split(';')[0];
+                            string sequence = entry.Key.Split(';')[1];
+                            relationingSequences.Add("" + seq, "" + sequence);
+                            not_acked.Add(entry.Key , entry.Value);
+                            RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
+                            IAsyncResult remoteResult = remoteDel.BeginInvoke(machine, sequence, entry.Value, null, null);
+                            seq += 1;
+                            //receiver.doProcessTuples(notSentTuples);
+                        }
                     }
-                    else if (url.Equals(receiverUrls[this.receiver_target]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
+                    else if (url.Equals(receiverUrls[0]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
                     {
-                        RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                        IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(notSentTuples, null, null);
+                        foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                        {
+
+                            string machine = entry.Key.Split(';')[0];
+                            string sequence = entry.Key.Split(';')[1];
+                            relationingSequences.Add("" + seq, "" + seq);
+                            not_acked.Add(entry.Key, entry.Value);
+                            RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
+                            IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(machine, sequence, entry.Value, null, null);
+                            seq += 1;
+                        }
                     }
                     else if (this.receiver_routing.StartsWith(SysConfig.HASHING)) //HASHING ROUTING
                     {
@@ -541,8 +589,11 @@ namespace Operator
                             {
                                 Console.WriteLine("enviei ");
                                 Console.WriteLine(rep+ " ");
+                                relationingSequences.Add("" + seq, "" + seq);
+                                not_acked.Add(seq + ";" + this.urls[0], res[rep]);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(res[rep], null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], ""+seq, res[rep], null, null);
+                                seq += 1;
                             }
                         }
                     }
@@ -551,16 +602,57 @@ namespace Operator
 
         }
 
-        public void doProcessTuples(IList<IList<string>> tuples)
+        public void doProcessTuples(String machine,string machine_seq,IList<IList<string>> tuples)
         {
-            processTuples(tuples);
+            processTuples(machine,machine_seq,tuples);
+        }
+
+        public void doAckTuples(string sequence)
+        {
+            foreach (KeyValuePair<string, IList<IList<string>>> entry in not_acked)
+            {
+                string[] splited = entry.Key.Split(';');
+                string machine = splited[0];
+                string actualSeq = splited[1];
+                if (actualSeq.Equals(seq))
+                {
+                    string previousMachineSeq = relationingSequences[actualSeq];
+                    if (!actualSeq.Equals(previousMachineSeq))
+                    {
+                        sendAckToPrevious(machine, previousMachineSeq);
+                    }
+                    not_acked.Remove(sequence + ";" + machine);
+                    relationingSequences.Remove(sequence);
+                }
+                
+            }
+               
+        }
+
+        public void sendAckToPrevious(string url,string previousMachineSeq)
+        {
+            TcpChannel chann = new TcpChannel();
+            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
+            if (op == null)
+                throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + url);
+            //RemoteAsyncAckTuplesDelegate remoteDel = new RemoteAsyncAckTuplesDelegate(op.doAckTuples);
+            //IAsyncResult remoteResult = remoteDel.BeginInvoke(previousMachineSeq, null, null); 
+            op.doAckTuples(previousMachineSeq);
         }
 
         public void makeAsOutputOperator()
         {
             finalOperator = true;
+            foreach (KeyValuePair<string, IList<IList<string>>> entry in notSentTuples)
+            {
+                string[] splited = entry.Key.Split(';');
+                string machine = splited[0];
+                string actualSeq = splited[1];
+                string previousMachineSeq = relationingSequences[actualSeq];
+                sendAckToPrevious(machine, previousMachineSeq);
+            }
             //outputToFile(notSentTuples);
-            notSentTuples = new List<IList<string>>();
+            notSentTuples = new Dictionary<string,IList<IList<string>>>();
         }
 
 

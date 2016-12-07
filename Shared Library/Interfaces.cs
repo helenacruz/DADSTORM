@@ -27,7 +27,8 @@ namespace Shared_Library
         void freeze();
         void unfreeze();
         void requestTuples(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
-        void doProcessTuples(IList<IList<string>> tuples);
+        void doProcessTuples(string machine, string seq, IList<IList<string>> tuples);
+        void doAckTuples(string seq);
         void makeAsOutputOperator();
         void setPrimary(bool value);
     }
