@@ -31,6 +31,10 @@ namespace Shared_Library
         void doAckTuples(string seq);
         void makeAsOutputOperator();
         void setPrimary(bool value);
+        void ping(string machine);
+        void pong(string machine);
+        void sendDeadReplica(string machine);
+
     }
 
     public interface IOperator

@@ -17,10 +17,10 @@ Start OP5
 
 Status
 % Crash OP1 0 crashes replica 0 of OP1
-% Crash OP1 0
+Crash OP3 0
 % Freeze OP2 1 freezes replica 1 of OP2
 %Freeze OP2 0
-%Wait 10000
+%Wait 5000
 % Unfreeze OP2 1 unfreezes replica 1 of OP2
 %Unfreeze OP2 0
 Status

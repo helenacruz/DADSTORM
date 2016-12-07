@@ -11,6 +11,7 @@ using System.IO;
 using System.Reflection;
 using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
+using System.Timers;
 
 namespace Operator
 {
@@ -58,6 +59,9 @@ namespace Operator
         public delegate void RemoteAsyncProcessTuplesDelegate(String machine, string seq, IList<IList<string>> tuples);
         public delegate void RemoteAsyncAckTuplesDelegate(string seq);
         public delegate void RemoteAsyncSetPrimaryDelegate(bool value);
+        public delegate void RemoteAsyncPingDelegate(string machine);
+        public delegate void RemoteAsyncPongDelegate(string machine);
+
 
 
         private TcpChannel channel;
@@ -77,6 +81,11 @@ namespace Operator
         private string semantics;
         private bool fullLoggingLevel;
         private int seq = 0;
+        private Timer timer1;
+        public const int pingsLimit = 2;
+        public const int pingsTimeouts = 5000;
+
+        private Dictionary<string, int> pings = new Dictionary<string, int>();
 
         private Dictionary<string, IList<IList<string>>> notSentTuples = new Dictionary<string, IList<IList<string>>>();
         private Dictionary<string, IList<IList<string>>> notProcessedTuples = new Dictionary<string, IList<IList<string>>>();
@@ -88,6 +97,10 @@ namespace Operator
 
 
         private IList<IRemoteOperator> receivers = new List<IRemoteOperator>();
+        private IList<string> receivers_urls = new List<string>();
+        private IList<string> receivers_bad_urls = new List<string>();
+
+
         string receiver_routing;
         private IRemotePuppetMaster puppet = null;
 
@@ -96,6 +109,7 @@ namespace Operator
         private int repId;
         private int random;
         private int receiver_target;
+        private bool requested = false;
 
         public Operator(string pmurl, string opName, IList<IList<string>> sources, String repFact, String routing, List<String> urls, int port, string semantics, string loggingLevel, string primary, string repId, string random)
         {
@@ -162,16 +176,20 @@ namespace Operator
 
         private bool processTuples(string machine, string machine_seq, IList<IList<string>> tuples)
         {
+            Console.WriteLine("DEBUG:");
 
             if (!canProcessTuples())
             {
                 notProcessedTuples.Add(machine_seq + ";" + machine, tuples);
                 return false;
             }
+
             Assembly assembly = Assembly.Load(this.opTypeCode);
 
             foreach (Type type in assembly.GetTypes())
             {
+
+
                 if (type.IsClass == true)
                 {
 
@@ -190,6 +208,8 @@ namespace Operator
                         }
                         else
                         {
+                            Console.WriteLine("DEBUG1:");
+
                             foreach (IList<string> tuple in tuples)
                             {
                                 args = new object[] { tuple };
@@ -198,6 +218,8 @@ namespace Operator
                                 foreach (List<string> t in temp)
                                     result.Add(t);
                             }
+                            Console.WriteLine("DEBUG2:");
+
 
                         }
 
@@ -206,7 +228,7 @@ namespace Operator
                             string res = "";
                             foreach (string s in tuple)
                                 res += s + ",";
-                            //Console.WriteLine("DEBUG:" + res);
+                            Console.WriteLine("DEBUG:" + res);
                         }
 
 
@@ -242,7 +264,7 @@ namespace Operator
                             if (receiver_routing.Equals(SysConfig.PRIMARY))
                             {
                                 relationingSequences.Add("" + seq, "" + machine_seq);
-                                not_acked.Add(seq + ";" + machine, result);
+                                not_acked.Add(seq + ";" + machine + ";" + receivers_urls[0], result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, result, null, null);
                                 seq += 1;
@@ -254,7 +276,7 @@ namespace Operator
                                 receiver_target = r.Next() % receivers.Count();
 
                                 relationingSequences.Add("" + seq, "" + machine_seq);
-                                not_acked.Add(seq + ";" + machine, result);
+                                not_acked.Add(seq + ";" + machine + ";" + receivers_urls[receiver_target], result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiver_target].doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, result, null, null);
                                 seq += 1;
@@ -286,7 +308,7 @@ namespace Operator
                                 foreach (int rep in res.Keys)
                                 {
                                     relationingSequences.Add("" + seq, "" + machine_seq);
-                                    not_acked.Add(seq + ";" + machine, res[rep]);
+                                    not_acked.Add(seq + ";" + machine + ";" + receivers_urls[rep], res[rep]);
                                     RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[rep].doProcessTuples);
                                     IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, res[rep], null, null);
                                     seq += 1;
@@ -338,6 +360,8 @@ namespace Operator
 
         public void startOperator()
         {
+            if(semantics.Equals(SysConfig.AT_LEAST_ONCE))
+                InitTimer();
             if (opTypeCode != null)
             {
                 Console.WriteLine("Operator started processing...");
@@ -475,20 +499,7 @@ namespace Operator
 
         public void crash()
         {
-            // for console applications
-            int i = 1;
-            for (string url = urls[i]; i < urls.Count; i++, url = urls[i])
-            {
-                channel = new TcpChannel();
-                IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
-                if (op == null)
-                {
-                    continue;
-                }
-                RemoteAsyncSetPrimaryDelegate RemoteDel = new RemoteAsyncSetPrimaryDelegate(op.setPrimary);
-                IAsyncResult RemAr = RemoteDel.BeginInvoke(true, null, null);
-                break;
-            }
+            // for console applications            
             System.Environment.Exit(0);
         }
 
@@ -515,92 +526,101 @@ namespace Operator
 
         public void requestTuples(string receiverRouting, int receiverTarget, IList<string> receiverUrls)
         {
-            this.receiver_routing = receiverRouting;
-            this.receiver_target = receiverTarget;
-
-            //Dictionary for hashing routing
-            if (receiver_routing.StartsWith(SysConfig.HASHING) && this.res.Count == 0 && notSentTuples.Count != 0)
-            {
-                string[] aux = this.receiver_routing.Split('(');
-                int field = Int32.Parse(aux[1].First() + "");
-
-                foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+            if (!requested) {
+                requested = true;
+                this.receiver_routing = receiverRouting;
+                this.receiver_target = receiverTarget;
+                //Dictionary for hashing routing
+                if (receiver_routing.StartsWith(SysConfig.HASHING) && this.res.Count == 0 && notSentTuples.Count != 0)
                 {
-                    foreach (List<string> tuple in entry.Value)
-                    {
-                        int replica = Math.Abs(tuple[field - 1].GetHashCode()) % receiverUrls.Count;
-                        IList<IList<string>> set;
-                        if (!(res.ContainsKey(replica)))
-                        {
-                            set = new List<IList<string>>();
-                            set.Add(tuple);
-                            res.Add(replica, set);
-                        }
-                        else
-                        {
-                            set = res[replica];
-                            set.Add(tuple);
-                            res[replica] = set;
-                        }
-                    }
-                }
-            }
+                    string[] aux = this.receiver_routing.Split('(');
+                    int field = Int32.Parse(aux[1].First() + "");
 
-            foreach (string url in receiverUrls)
-            {
-                channel = new TcpChannel();
-                IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
-                if (op == null)
-                    throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + url);
-                receivers.Add(op);
-                if (notSentTuples.Count > 0)
-                {
-                    if ((this.receiver_routing.Equals(SysConfig.PRIMARY) && url.Equals(receiverUrls[0])))
+                    foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
                     {
-                        foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                        foreach (List<string> tuple in entry.Value)
                         {
-
-                            string machine = entry.Key.Split(';')[0];
-                            string sequence = entry.Key.Split(';')[1];
-                            relationingSequences.Add("" + seq, "" + sequence);
-                            not_acked.Add(entry.Key, entry.Value);
-                            RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                            IAsyncResult remoteResult = remoteDel.BeginInvoke(machine, sequence, entry.Value, null, null);
-                            seq += 1;
-                            //receiver.doProcessTuples(notSentTuples);
-                        }
-                    }
-                    else if (url.Equals(receiverUrls[0]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
-                    {
-                        foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
-                        {
-
-                            string machine = entry.Key.Split(';')[0];
-                            string sequence = entry.Key.Split(';')[1];
-                            relationingSequences.Add("" + seq, "" + seq);
-                            not_acked.Add(entry.Key, entry.Value);
-                            RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                            IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(machine, sequence, entry.Value, null, null);
-                            seq += 1;
-                        }
-                    }
-                    else if (this.receiver_routing.StartsWith(SysConfig.HASHING)) //HASHING ROUTING
-                    {
-                        foreach (int rep in res.Keys)
-                        {
-                            if (url.Equals(receiverUrls[rep]))
+                            int replica = Math.Abs(tuple[field - 1].GetHashCode()) % receiverUrls.Count;
+                            IList<IList<string>> set;
+                            if (!(res.ContainsKey(replica)))
                             {
-                                Console.WriteLine("enviei ");
-                                Console.WriteLine(rep + " ");
-                                relationingSequences.Add("" + seq, "" + seq);
-                                not_acked.Add(seq + ";" + this.urls[0], res[rep]);
-                                RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, res[rep], null, null);
-                                seq += 1;
+                                set = new List<IList<string>>();
+                                set.Add(tuple);
+                                res.Add(replica, set);
+                            }
+                            else
+                            {
+                                set = res[replica];
+                                set.Add(tuple);
+                                res[replica] = set;
                             }
                         }
                     }
                 }
+
+                foreach (string url in receiverUrls)
+                {
+                    channel = new TcpChannel();
+                    IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
+                    if (op == null)
+                        throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + url);
+                    receivers.Add(op);
+                    this.receivers_urls.Add(url);
+                    if (notSentTuples.Count > 0)
+                    {
+                        if ((this.receiver_routing.Equals(SysConfig.PRIMARY) && url.Equals(receiverUrls[0])))
+                        {
+                            foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                            {
+
+                                string machine = entry.Key.Split(';')[0];
+                                string sequence = entry.Key.Split(';')[1];
+                                relationingSequences.Add("" + seq, "" + sequence);
+                                not_acked.Add(entry.Key, entry.Value);
+                                RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
+                                IAsyncResult remoteResult = remoteDel.BeginInvoke(machine, sequence, entry.Value, null, null);
+                                seq += 1;
+                                //receiver.doProcessTuples(notSentTuples);
+                            }
+                        }
+                        else if (url.Equals(receiverUrls[0]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
+                        {
+                            foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                            {
+
+                                string machine = entry.Key.Split(';')[0];
+                                string sequence = entry.Key.Split(';')[1];
+                                relationingSequences.Add("" + seq, "" + seq);
+                                not_acked.Add(entry.Key, entry.Value);
+                                RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(machine, sequence, entry.Value, null, null);
+                                seq += 1;
+                            }
+                        }
+                        else if (this.receiver_routing.StartsWith(SysConfig.HASHING)) //HASHING ROUTING
+                        {
+                            foreach (int rep in res.Keys)
+                            {
+                                if (url.Equals(receiverUrls[rep]))
+                                {
+                                    Console.WriteLine("enviei ");
+                                    Console.WriteLine(rep + " ");
+                                    relationingSequences.Add("" + seq, "" + seq);
+                                    not_acked.Add(seq + ";" + this.urls[0] + ";" + url, res[rep]);
+                                    RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
+                                    IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, res[rep], null, null);
+                                    seq += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (string url in receivers_bad_urls)
+                    sendDeadReplica(url);
+                receivers_bad_urls = new List<string>();
             }
 
         }
@@ -634,13 +654,14 @@ namespace Operator
 
         public void sendAckToPrevious(string url, string previousMachineSeq)
         {
-            TcpChannel chann = new TcpChannel();
+            channel = new TcpChannel();
             IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
             if (op == null)
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + url);
             //RemoteAsyncAckTuplesDelegate remoteDel = new RemoteAsyncAckTuplesDelegate(op.doAckTuples);
             //IAsyncResult remoteResult = remoteDel.BeginInvoke(previousMachineSeq, null, null); 
-            op.doAckTuples(previousMachineSeq);
+            if(semantics.Equals(SysConfig.AT_LEAST_ONCE))
+                op.doAckTuples(previousMachineSeq);
         }
 
         public void makeAsOutputOperator()
@@ -656,6 +677,131 @@ namespace Operator
             }
             //outputToFile(notSentTuples);
             notSentTuples = new Dictionary<string, IList<IList<string>>>();
+        }
+
+        public void ping(string machine)
+        {
+            channel = new TcpChannel();
+            IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), machine);
+            if (op == null)
+                throw new CannotAccessRemoteObjectException("Cannot get remote replica Operator from " + machine);
+
+            RemoteAsyncPongDelegate remoteDeleg = new RemoteAsyncPongDelegate(op.pong);
+            IAsyncResult remoteResulte = remoteDeleg.BeginInvoke(urls[0], null, null);
+        }
+        public void pong(string machine)
+        {
+            pings[machine] = 0;
+        }
+
+        public void sendDeadReplica(string replica)
+        {
+            receivers_bad_urls.Add(replica);
+
+            for (int i=0; i<receivers_urls.Count;i++)
+            {
+
+                if (receivers_urls[i].Equals(replica))
+                {
+                    Console.WriteLine("loloooooia");
+
+                    receivers_urls.RemoveAt(i);
+                    receivers.RemoveAt(i);
+                    foreach (KeyValuePair<string, IList<IList<string>>> entry in not_acked)
+                    {
+                        Console.WriteLine("loloooooi");
+                        string[] splited = entry.Key.Split(';');
+                        string machine = splited[0];
+                        string actualSeq = splited[1];
+                        string destinationMachine = splited[2];
+                        if (destinationMachine.Equals(replica))
+                        {
+                            not_acked.Remove(entry.Key);
+                            doProcessTuples(machine, actualSeq, entry.Value);
+                        }
+                    }
+                }
+            }
+        }
+
+
+        private void InitTimer()
+        {
+            timer1 = new Timer();
+            timer1.Elapsed += new ElapsedEventHandler(pingFunction);
+            timer1.Interval = pingsTimeouts; 
+            timer1.Start();
+        }
+
+        private void pingFunction(object sender, EventArgs e)
+        {
+
+            foreach (string url in urls)
+            {
+                if (!pings.ContainsKey(url))
+                    pings[url] = 0;
+
+                if (!url.Equals(url[0]))
+                {
+
+                    if (pings[url] >= pingsLimit)
+                    {
+                        deadReplicaDetected(url);
+                        return;
+                    }
+
+                    pings[url] +=1;
+                    channel = new TcpChannel();
+                    IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
+                    if (op == null)
+                        throw new CannotAccessRemoteObjectException("Cannot get remote replica Operator from " + url);
+
+                    RemoteAsyncPingDelegate remoteDeleg = new RemoteAsyncPingDelegate(op.ping);
+                    IAsyncResult remoteResulte = remoteDeleg.BeginInvoke(urls[0], null, null);
+                }
+                
+                          
+               }
+          }
+
+        private void deadReplicaDetected(string url)
+        {
+            electPrimaryOperator(url);
+            foreach (IList<string> source in sources)
+            {
+                foreach (string sourc in source)
+                {
+                    //we will try to start this operator like from 0 and send request to sources
+                    startOperator();
+                    if (sourc.Contains("tcp://"))
+                    {
+                        channel = new TcpChannel();
+                        IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), sourc);
+                        if (op == null)
+                            throw new CannotAccessRemoteObjectException("Cannot get remote replica Operator from " + sourc);
+                        op.sendDeadReplica(url);
+                    }
+                       
+                }
+            }
+            urls.Remove(url);
+        }
+
+        private void electPrimaryOperator(string deadUrl)
+        {
+            string primaryy = urls[0];
+            for(int i=1;i<urls.Count;i++)
+            {
+                if (!urls[i].Equals(deadUrl))
+                {
+                    Version a = new Version(primaryy);
+                    Version b = new Version(urls[i]);
+                    if (a > b)
+                        primaryy = urls[i];
+                }   
+            }
+            if (urls[0].Equals(primaryy))
+                this.primary = true;
         }
 
 
