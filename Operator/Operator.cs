@@ -53,7 +53,7 @@ namespace Operator
     class Operator : MarshalByRefObject, IRemoteOperator
     {
 
-        public delegate void RemoteAsyncLogDelegate(string address,IList<string> tuples);
+        public delegate void RemoteAsyncLogDelegate(string address, IList<string> tuples);
         public delegate void RemoteAsyncReqTuplesDelegate(string receiver_routing, int receiverTarget, IList<string> receiver_urls);
         public delegate void RemoteAsyncProcessTuplesDelegate(String machine, string seq, IList<IList<string>> tuples);
         public delegate void RemoteAsyncAckTuplesDelegate(string seq);
@@ -62,7 +62,7 @@ namespace Operator
 
         private TcpChannel channel;
 
-        private bool finalOperator=false;
+        private bool finalOperator = false;
         private string pmurl;
         private string opName;
         private IList<IList<string>> sources;
@@ -71,15 +71,15 @@ namespace Operator
         private IList<String> urls;
         private int port;
         private byte[] opTypeCode;
-        private string className=null;
+        private string className = null;
         private string method;
         private IList<string> opSpecs;
         private string semantics;
         private bool fullLoggingLevel;
-        private int seq=0;
+        private int seq = 0;
 
-        private Dictionary<string,IList<IList<string>>> notSentTuples = new Dictionary<string,IList<IList<string>>>();
-        private Dictionary<string,IList<IList<string>>> notProcessedTuples = new Dictionary<string,IList<IList<string>>>();
+        private Dictionary<string, IList<IList<string>>> notSentTuples = new Dictionary<string, IList<IList<string>>>();
+        private Dictionary<string, IList<IList<string>>> notProcessedTuples = new Dictionary<string, IList<IList<string>>>();
         private Dictionary<int, IList<IList<string>>> res = new Dictionary<int, IList<IList<string>>>();
 
         private Dictionary<string, IList<IList<string>>> not_acked = new Dictionary<string, IList<IList<string>>>();
@@ -87,7 +87,7 @@ namespace Operator
         //mySequenceNumber--Source sequence number
 
 
-        private IList<IRemoteOperator> receivers= new List<IRemoteOperator>();
+        private IList<IRemoteOperator> receivers = new List<IRemoteOperator>();
         string receiver_routing;
         private IRemotePuppetMaster puppet = null;
 
@@ -114,7 +114,7 @@ namespace Operator
             this.fullLoggingLevel = true;
             if (loggingLevel.Equals(SysConfig.LIGHT))
                 this.fullLoggingLevel = false;
-           
+
             this.primary = true;
             if (primary.ToLower().Equals("false"))
                 this.primary = false;
@@ -125,10 +125,10 @@ namespace Operator
 
         public void registerOP()
         {
-            Console.WriteLine("Registering Operator at "+ urls[0] + " ...");
+            Console.WriteLine("Registering Operator at " + urls[0] + " ...");
             channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
-            RemotingServices.Marshal(this,opName, typeof(IRemoteOperator));
+            RemotingServices.Marshal(this, opName, typeof(IRemoteOperator));
 
             channel = new TcpChannel();
             puppet = (IRemotePuppetMaster)Activator.GetObject(typeof(Operator), pmurl);
@@ -160,7 +160,7 @@ namespace Operator
             return frozen == false;
         }
 
-        private bool processTuples(string machine,string machine_seq,IList<IList<string>> tuples)
+        private bool processTuples(string machine, string machine_seq, IList<IList<string>> tuples)
         {
 
             if (!canProcessTuples())
@@ -169,7 +169,7 @@ namespace Operator
                 return false;
             }
             Assembly assembly = Assembly.Load(this.opTypeCode);
-           
+
             foreach (Type type in assembly.GetTypes())
             {
                 if (type.IsClass == true)
@@ -182,7 +182,8 @@ namespace Operator
                         object resultObject;
                         IList<IList<string>> result = new List<IList<string>>();
 
-                        if (className.Equals("UniqueOperator") || className.Equals("FilterOperator") || className.Equals("CountOperator") || className.Equals("DupOperator")) {
+                        if (className.Equals("UniqueOperator") || className.Equals("FilterOperator") || className.Equals("CountOperator") || className.Equals("DupOperator"))
+                        {
                             args = new object[] { tuples, this.opSpecs };
                             resultObject = type.InvokeMember(this.method, BindingFlags.Default | BindingFlags.InvokeMethod, null, ClassObj, args);
                             result = (IList<IList<string>>)resultObject;
@@ -207,7 +208,7 @@ namespace Operator
                                 res += s + ",";
                             //Console.WriteLine("DEBUG:" + res);
                         }
-                            
+
 
                         if (fullLoggingLevel)
                         {
@@ -219,21 +220,21 @@ namespace Operator
                                 String temp = "";
                                 if (l.Count > 0)
                                     temp += l[0];
-                                for(int i=1;i<l.Count;i++)
-                                    temp += ","+l[i];
+                                for (int i = 1; i < l.Count; i++)
+                                    temp += "," + l[i];
                                 res.Add(temp);
                             }
                             IAsyncResult RemAr = RemoteDel.BeginInvoke(urls[0], res, null, null);
                         }
 
-                        if (receivers.Count==0 )
+                        if (receivers.Count == 0)
                         {
-                            notSentTuples.Add(machine_seq+";"+machine, result);
-                            if (finalOperator && notSentTuples.Count>0)
+                            notSentTuples.Add(machine_seq + ";" + machine, result);
+                            if (finalOperator && notSentTuples.Count > 0)
                             {
                                 sendAckToPrevious(machine, machine_seq);
                                 //outputToFile(notSentTuples);
-                                notSentTuples = new Dictionary<string,IList<IList<string>>>();
+                                notSentTuples = new Dictionary<string, IList<IList<string>>>();
                             }
                         }
                         else
@@ -241,9 +242,9 @@ namespace Operator
                             if (receiver_routing.Equals(SysConfig.PRIMARY))
                             {
                                 relationingSequences.Add("" + seq, "" + machine_seq);
-                                not_acked.Add(seq + ";" + machine,result);
+                                not_acked.Add(seq + ";" + machine, result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0],""+seq,result, null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, result, null, null);
                                 seq += 1;
                                 //receiver.doProcessTuples(result);
                             }
@@ -253,9 +254,9 @@ namespace Operator
                                 receiver_target = r.Next() % receivers.Count();
 
                                 relationingSequences.Add("" + seq, "" + machine_seq);
-                                not_acked.Add(seq + ";" + machine,result);
+                                not_acked.Add(seq + ";" + machine, result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiver_target].doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], ""+seq, result, null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, result, null, null);
                                 seq += 1;
                             }
                             else if (receiver_routing.StartsWith(SysConfig.HASHING)) //Hashing Routing
@@ -287,18 +288,18 @@ namespace Operator
                                     relationingSequences.Add("" + seq, "" + machine_seq);
                                     not_acked.Add(seq + ";" + machine, res[rep]);
                                     RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[rep].doProcessTuples);
-                                    IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], ""+seq, res[rep], null, null);
+                                    IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, res[rep], null, null);
                                     seq += 1;
                                 }
                             }
                         }
 
-                        notProcessedTuples = new Dictionary<string,IList<IList<string>>>();
+                        notProcessedTuples = new Dictionary<string, IList<IList<string>>>();
                         return true;
                     }
                 }
             }
-            throw (new System.Exception("could not invoke method"));                
+            throw (new System.Exception("could not invoke method"));
         }
 
         public void outputToFile(IList<IList<string>> candidatTuples)
@@ -331,8 +332,8 @@ namespace Operator
             this.opTypeCode = code;
             this.className = className;
             this.method = method;
-            this.opSpecs = opSpecs;   
-    }
+            this.opSpecs = opSpecs;
+        }
 
 
         public void startOperator()
@@ -366,13 +367,13 @@ namespace Operator
 
                                 }
                             }
-                            processTuples(this.urls[0],""+seq,tuples);
+                            processTuples(this.urls[0], "" + seq, tuples);
                             seq += 1;
                         }
                         else if (routing.StartsWith(SysConfig.HASHING)) //HASHING
                         {
                             string[] aux = this.routing.Split('(');
-                            int field = Int32.Parse(aux[1].First()+"");
+                            int field = Int32.Parse(aux[1].First() + "");
                             while ((line = file.ReadLine()) != null)
                             {
                                 string[] split = line.Split(',');
@@ -386,18 +387,18 @@ namespace Operator
                                     tuples.Add(l);
                                 }
                             }
-                            processTuples(this.urls[0], "" + seq,tuples);
+                            processTuples(this.urls[0], "" + seq, tuples);
                             seq += 1;
                         }
                     }
                     else
                     {
-                            sendRequestToSources(source);
-                            Console.WriteLine("Waiting tuples from an operator...");
+                        sendRequestToSources(source);
+                        Console.WriteLine("Waiting tuples from an operator...");
 
                     }
                 }
-                
+
             }
             else
                 throw new OpByteCodesNotReceivedException("The operator " + opName + " at " + urls[0] + "not received operator byte codes");
@@ -405,16 +406,16 @@ namespace Operator
 
         private string removeWhiteSpaces(string s)
         {
-            bool aceptingSpaces=false;
+            bool aceptingSpaces = false;
             string result = "";
-            foreach  (char c in s)
+            foreach (char c in s)
             {
                 if (c == '\"')
                 {
                     s += c;
                     aceptingSpaces = !aceptingSpaces;
                 }
-                if ((c == ' ' && aceptingSpaces) || c!=' ')
+                if ((c == ' ' && aceptingSpaces) || c != ' ')
                     result += c;
             }
             return result;
@@ -445,14 +446,14 @@ namespace Operator
                 Console.WriteLine("   State: Frozen.");
             else
                 Console.WriteLine("   State: Not Frozen.");
-           
+
             Console.WriteLine("   Replication factory: " + repFact);
             Console.WriteLine("   My Routing: " + routing);
             Console.WriteLine("   Receiver Routing: " + receiver_routing);
             Console.WriteLine("   Final Operator: " + finalOperator);
-            Console.Write("   Active Replicas: " );
+            Console.Write("   Active Replicas: ");
             foreach (string url in urls)
-                Console.Write(url+"  ");
+                Console.Write(url + "  ");
             Console.WriteLine("");
             Console.WriteLine("   Not processed Tuples: ");
             foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
@@ -488,7 +489,7 @@ namespace Operator
                 IAsyncResult RemAr = RemoteDel.BeginInvoke(true, null, null);
                 break;
             }
-                System.Environment.Exit(0);
+            System.Environment.Exit(0);
         }
 
         public void freeze()
@@ -499,7 +500,8 @@ namespace Operator
         public void unfreeze()
         {
             frozen = false;
-            if (notProcessedTuples.Count > 0) {
+            if (notProcessedTuples.Count > 0)
+            {
                 foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
                 {
                     string machine = entry.Key.Split(';')[0];
@@ -522,7 +524,8 @@ namespace Operator
                 string[] aux = this.receiver_routing.Split('(');
                 int field = Int32.Parse(aux[1].First() + "");
 
-                foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples) { 
+                foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                {
                     foreach (List<string> tuple in entry.Value)
                     {
                         int replica = Math.Abs(tuple[field - 1].GetHashCode()) % receiverUrls.Count;
@@ -539,10 +542,10 @@ namespace Operator
                             set.Add(tuple);
                             res[replica] = set;
                         }
+                    }
                 }
             }
-            }
-           
+
             foreach (string url in receiverUrls)
             {
                 channel = new TcpChannel();
@@ -560,7 +563,7 @@ namespace Operator
                             string machine = entry.Key.Split(';')[0];
                             string sequence = entry.Key.Split(';')[1];
                             relationingSequences.Add("" + seq, "" + sequence);
-                            not_acked.Add(entry.Key , entry.Value);
+                            not_acked.Add(entry.Key, entry.Value);
                             RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                             IAsyncResult remoteResult = remoteDel.BeginInvoke(machine, sequence, entry.Value, null, null);
                             seq += 1;
@@ -588,11 +591,11 @@ namespace Operator
                             if (url.Equals(receiverUrls[rep]))
                             {
                                 Console.WriteLine("enviei ");
-                                Console.WriteLine(rep+ " ");
+                                Console.WriteLine(rep + " ");
                                 relationingSequences.Add("" + seq, "" + seq);
                                 not_acked.Add(seq + ";" + this.urls[0], res[rep]);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], ""+seq, res[rep], null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, res[rep], null, null);
                                 seq += 1;
                             }
                         }
@@ -602,9 +605,9 @@ namespace Operator
 
         }
 
-        public void doProcessTuples(String machine,string machine_seq,IList<IList<string>> tuples)
+        public void doProcessTuples(String machine, string machine_seq, IList<IList<string>> tuples)
         {
-            processTuples(machine,machine_seq,tuples);
+            processTuples(machine, machine_seq, tuples);
         }
 
         public void doAckTuples(string sequence)
@@ -624,12 +627,12 @@ namespace Operator
                     not_acked.Remove(sequence + ";" + machine);
                     relationingSequences.Remove(sequence);
                 }
-                
+
             }
-               
+
         }
 
-        public void sendAckToPrevious(string url,string previousMachineSeq)
+        public void sendAckToPrevious(string url, string previousMachineSeq)
         {
             TcpChannel chann = new TcpChannel();
             IRemoteOperator op = (IRemoteOperator)Activator.GetObject(typeof(Operator), url);
@@ -652,9 +655,9 @@ namespace Operator
                 sendAckToPrevious(machine, previousMachineSeq);
             }
             //outputToFile(notSentTuples);
-            notSentTuples = new Dictionary<string,IList<IList<string>>>();
+            notSentTuples = new Dictionary<string, IList<IList<string>>>();
         }
 
 
-}
+    }
 }
