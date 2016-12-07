@@ -235,6 +235,7 @@ namespace Operator
                         }
                         else
                         {
+
                             if (receiver_routing.Equals(SysConfig.PRIMARY))
                             {
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
@@ -243,6 +244,8 @@ namespace Operator
                             }
                             else if (receiver_routing.Equals(SysConfig.RANDOM)) //Random Routing
                             {
+                                Random r = new Random();
+                                receiver_target = r.Next() % receivers.Count();
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiver_target].doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(result, null, null);
                             }
@@ -512,7 +515,6 @@ namespace Operator
                     }
                 }
             }
-           
             foreach (string url in receiverUrls)
             {
                 channel = new TcpChannel();
@@ -528,7 +530,7 @@ namespace Operator
                         IAsyncResult remoteResult = remoteDel.BeginInvoke(notSentTuples, null, null);
                         //receiver.doProcessTuples(notSentTuples);
                     }
-                    else if (url.Equals(receiverUrls[this.receiver_target]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
+                    else if (url.Equals(receiverUrls[0]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
                     {
                         RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                         IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(notSentTuples, null, null);
@@ -539,8 +541,6 @@ namespace Operator
                         {
                             if (url.Equals(receiverUrls[rep]))
                             {
-                                Console.WriteLine("enviei ");
-                                Console.WriteLine(rep+ " ");
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(res[rep], null, null);
                             }
