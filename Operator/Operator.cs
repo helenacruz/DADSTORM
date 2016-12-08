@@ -100,7 +100,6 @@ namespace Operator
         private IList<string> receivers_urls = new List<string>();
         private IList<string> receivers_bad_urls = new List<string>();
 
-
         string receiver_routing;
         private IRemotePuppetMaster puppet = null;
 
@@ -604,7 +603,7 @@ namespace Operator
                                 string machine = entry.Key.Split(';')[0];
                                 string sequence = entry.Key.Split(';')[1];
                                 relationingSequences.Add("" + seq, "" + sequence);
-                                not_acked.Add(entry.Key, entry.Value);
+                                not_acked.Add(machine+";"+seq, entry.Value);
                                 RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                                 IAsyncResult remoteResult = remoteDel.BeginInvoke(urls[0], ""+seq, entry.Value, null, null);
                                 seq += 1;
@@ -619,7 +618,7 @@ namespace Operator
                                 string machine = entry.Key.Split(';')[0];
                                 string sequence = entry.Key.Split(';')[1];
                                 relationingSequences.Add("" + seq, "" + sequence);
-                                not_acked.Add(entry.Key, entry.Value);
+                                not_acked.Add(machine + ";" + seq, entry.Value);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(urls[0], ""+seq, entry.Value, null, null);
                                 seq += 1;
@@ -670,17 +669,14 @@ namespace Operator
                 if (actualSeq.Equals(sequence))
                 {
                     string previousMachineSeq = relationingSequences[actualSeq];
-                    Console.WriteLine("antesif:" );
                     if (!previousMachineSeq.Equals("-1"))
                     {
-                        Console.WriteLine("vamosif:");
                         sendAckToPrevious(machine, previousMachineSeq);
                     }
-                    Console.WriteLine("passeioif:" + entry.Key);
+                   
                     not_acked.Remove(entry.Key);
                     relationingSequences.Remove(sequence);
-                    Console.WriteLine("over");
-
+                    return;
                 }
 
             }
