@@ -83,7 +83,7 @@ namespace Operator
         private int seq = 0;
         private Timer timer1;
         public const int pingsLimit = 2;
-        public const int pingsTimeouts = 5000;
+        public const int pingsTimeouts = 2500;
 
         private Dictionary<string, int> pings = new Dictionary<string, int>();
 
@@ -179,7 +179,7 @@ namespace Operator
 
             if (!canProcessTuples())
             {
-                notProcessedTuples.Add(machine_seq + ";" + machine, tuples);
+                notProcessedTuples.Add(machine + ";" + machine_seq, tuples);
                 return false;
             }
 
@@ -248,7 +248,7 @@ namespace Operator
 
                         if (receivers.Count == 0)
                         {
-                            notSentTuples.Add(machine_seq + ";" + machine, result);
+                            notSentTuples.Add(machine + ";" + machine_seq, result);
                             if (finalOperator && notSentTuples.Count > 0)
                             {
                                 sendAckToPrevious(machine, machine_seq);
@@ -261,7 +261,7 @@ namespace Operator
                             if (receiver_routing.Equals(SysConfig.PRIMARY))
                             {
                                 relationingSequences.Add("" + seq, "" + machine_seq);
-                                not_acked.Add(seq + ";" + machine + ";" + receivers_urls[0], result);
+                                not_acked.Add(machine + ";" + seq + ";" + receivers_urls[0], result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, result, null, null);
                                 seq += 1;
@@ -273,7 +273,7 @@ namespace Operator
                                 receiver_target = r.Next() % receivers.Count();
 
                                 relationingSequences.Add("" + seq, "" + machine_seq);
-                                not_acked.Add(seq + ";" + machine + ";" + receivers_urls[receiver_target], result);
+                                not_acked.Add(machine + ";" + seq + ";" + receivers_urls[receiver_target], result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[receiver_target].doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, result, null, null);
                                 seq += 1;
@@ -305,7 +305,7 @@ namespace Operator
                                 foreach (int rep in res.Keys)
                                 {
                                     relationingSequences.Add("" + seq, "" + machine_seq);
-                                    not_acked.Add(seq + ";" + machine + ";" + receivers_urls[rep], res[rep]);
+                                    not_acked.Add(machine + ";" + seq + ";" + receivers_urls[rep], res[rep]);
                                     RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[rep].doProcessTuples);
                                     IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, res[rep], null, null);
                                     seq += 1;
@@ -388,8 +388,7 @@ namespace Operator
 
                                 }
                             }
-                            processTuples(this.urls[0], "" + seq, tuples);
-                            seq += 1;
+                            processTuples(this.urls[0], "-1", tuples);
                         }
                         else if (routing.StartsWith(SysConfig.HASHING)) //HASHING
                         {
@@ -408,8 +407,7 @@ namespace Operator
                                     tuples.Add(l);
                                 }
                             }
-                            processTuples(this.urls[0], "" + seq, tuples);
-                            seq += 1;
+                            processTuples(this.urls[0], "-1", tuples);
                         }
                     }
                     else
@@ -467,10 +465,10 @@ namespace Operator
                 Console.WriteLine("   State: Frozen.");
             else
                 Console.WriteLine("   State: Not Frozen.");
-
             Console.WriteLine("   Replication factory: " + repFact);
             Console.WriteLine("   My Routing: " + routing);
             Console.WriteLine("   Receiver Routing: " + receiver_routing);
+            Console.WriteLine("   Semantics: " + semantics);
             Console.WriteLine("   Final Operator: " + finalOperator);
             Console.Write("   Active Replicas: ");
             foreach (string url in urls)
@@ -608,7 +606,7 @@ namespace Operator
                                 relationingSequences.Add("" + seq, "" + sequence);
                                 not_acked.Add(entry.Key, entry.Value);
                                 RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                                IAsyncResult remoteResult = remoteDel.BeginInvoke(machine, sequence, entry.Value, null, null);
+                                IAsyncResult remoteResult = remoteDel.BeginInvoke(urls[0], ""+seq, entry.Value, null, null);
                                 seq += 1;
                                 //receiver.doProcessTuples(notSentTuples);
                             }
@@ -620,10 +618,10 @@ namespace Operator
 
                                 string machine = entry.Key.Split(';')[0];
                                 string sequence = entry.Key.Split(';')[1];
-                                relationingSequences.Add("" + seq, "" + seq);
+                                relationingSequences.Add("" + seq, "" + sequence);
                                 not_acked.Add(entry.Key, entry.Value);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
-                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(machine, sequence, entry.Value, null, null);
+                                IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(urls[0], ""+seq, entry.Value, null, null);
                                 seq += 1;
                             }
                         }
@@ -636,13 +634,14 @@ namespace Operator
                                     Console.WriteLine("enviei ");
                                     Console.WriteLine(rep + " ");
                                     relationingSequences.Add("" + seq, "" + seq);
-                                    not_acked.Add(seq + ";" + this.urls[0] + ";" + url, res[rep]);
+                                    not_acked.Add(this.urls[0] + ";" + seq + ";" + url, res[rep]);
                                     RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                                     IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(this.urls[0], "" + seq, res[rep], null, null);
                                     seq += 1;
                                 }
                             }
                         }
+                        notSentTuples = new Dictionary<string, IList<IList<string>>>();
                     }
                 }
             }
@@ -667,15 +666,21 @@ namespace Operator
                 string[] splited = entry.Key.Split(';');
                 string machine = splited[0];
                 string actualSeq = splited[1];
-                if (actualSeq.Equals(seq))
+                Console.WriteLine("lol:" + actualSeq+";"+sequence );
+                if (actualSeq.Equals(sequence))
                 {
                     string previousMachineSeq = relationingSequences[actualSeq];
-                    if (!actualSeq.Equals(previousMachineSeq))
+                    Console.WriteLine("antesif:" );
+                    if (!previousMachineSeq.Equals("-1"))
                     {
+                        Console.WriteLine("vamosif:");
                         sendAckToPrevious(machine, previousMachineSeq);
                     }
-                    not_acked.Remove(sequence + ";" + machine);
+                    Console.WriteLine("passeioif:" + entry.Key);
+                    not_acked.Remove(entry.Key);
                     relationingSequences.Remove(sequence);
+                    Console.WriteLine("over");
+
                 }
 
             }
@@ -690,7 +695,7 @@ namespace Operator
                 throw new CannotAccessRemoteObjectException("Cannot get remote Operator from " + url);
             //RemoteAsyncAckTuplesDelegate remoteDel = new RemoteAsyncAckTuplesDelegate(op.doAckTuples);
             //IAsyncResult remoteResult = remoteDel.BeginInvoke(previousMachineSeq, null, null); 
-            if(semantics.Equals(SysConfig.AT_LEAST_ONCE))
+            if (semantics.Equals(SysConfig.AT_LEAST_ONCE))
                 op.doAckTuples(previousMachineSeq);
         }
 
