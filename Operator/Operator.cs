@@ -603,7 +603,7 @@ namespace Operator
                                 string machine = entry.Key.Split(';')[0];
                                 string sequence = entry.Key.Split(';')[1];
                                 relationingSequences.Add("" + seq, "" + sequence);
-                                not_acked.Add(machine+";"+seq, entry.Value);
+                                not_acked.Add(machine+";"+seq + ";" + receivers_urls[0], entry.Value);
                                 RemoteAsyncProcessTuplesDelegate remoteDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                                 IAsyncResult remoteResult = remoteDel.BeginInvoke(urls[0], ""+seq, entry.Value, null, null);
                                 seq += 1;
@@ -618,7 +618,7 @@ namespace Operator
                                 string machine = entry.Key.Split(';')[0];
                                 string sequence = entry.Key.Split(';')[1];
                                 relationingSequences.Add("" + seq, "" + sequence);
-                                not_acked.Add(machine + ";" + seq, entry.Value);
+                                not_acked.Add(machine + ";" + seq + ";" + receivers_urls[0], entry.Value);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(op.doProcessTuples);
                                 IAsyncResult remoteResult = remoteProcTupleDel.BeginInvoke(urls[0], ""+seq, entry.Value, null, null);
                                 seq += 1;
@@ -665,7 +665,7 @@ namespace Operator
                 string[] splited = entry.Key.Split(';');
                 string machine = splited[0];
                 string actualSeq = splited[1];
-                Console.WriteLine("lol:" + actualSeq+";"+sequence );
+
                 if (actualSeq.Equals(sequence))
                 {
                     string previousMachineSeq = relationingSequences[actualSeq];
@@ -734,9 +734,10 @@ namespace Operator
 
                 if (receivers_urls[i].Equals(replica))
                 {
-
                     receivers_urls.RemoveAt(i);
                     receivers.RemoveAt(i);
+
+                    List<string> toRemove = new List<string>();
                     foreach (KeyValuePair<string, IList<IList<string>>> entry in not_acked)
                     {
                         string[] splited = entry.Key.Split(';');
@@ -745,10 +746,13 @@ namespace Operator
                         string destinationMachine = splited[2];
                         if (destinationMachine.Equals(replica))
                         {
-                            not_acked.Remove(entry.Key);
+                            toRemove.Add(entry.Key);
                             doProcessTuples(machine, actualSeq, entry.Value);
                         }
                     }
+                    foreach(string s in toRemove)
+                        not_acked.Remove(s);
+
                 }
             }
         }
