@@ -39,9 +39,10 @@ namespace PuppetMaster
             // 
             // configButton
             // 
-            this.configButton.Location = new System.Drawing.Point(547, 38);
+            this.configButton.Location = new System.Drawing.Point(410, 31);
+            this.configButton.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.configButton.Name = "configButton";
-            this.configButton.Size = new System.Drawing.Size(193, 38);
+            this.configButton.Size = new System.Drawing.Size(145, 31);
             this.configButton.TabIndex = 0;
             this.configButton.Text = "Process all script";
             this.configButton.UseVisualStyleBackColor = true;
@@ -49,9 +50,10 @@ namespace PuppetMaster
             // 
             // scriptButton
             // 
-            this.scriptButton.Location = new System.Drawing.Point(547, 118);
+            this.scriptButton.Location = new System.Drawing.Point(410, 96);
+            this.scriptButton.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.scriptButton.Name = "scriptButton";
-            this.scriptButton.Size = new System.Drawing.Size(193, 38);
+            this.scriptButton.Size = new System.Drawing.Size(145, 31);
             this.scriptButton.TabIndex = 1;
             this.scriptButton.Text = "Process step-by-step";
             this.scriptButton.UseVisualStyleBackColor = true;
@@ -60,30 +62,31 @@ namespace PuppetMaster
             // Result
             // 
             this.Result.BackColor = System.Drawing.SystemColors.ButtonHighlight;
-            this.Result.Location = new System.Drawing.Point(25, 38);
+            this.Result.Location = new System.Drawing.Point(19, 31);
+            this.Result.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.Result.Multiline = true;
             this.Result.Name = "Result";
             this.Result.ReadOnly = true;
             this.Result.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.Result.Size = new System.Drawing.Size(479, 379);
+            this.Result.Size = new System.Drawing.Size(360, 385);
             this.Result.TabIndex = 2;
             this.Result.TextChanged += new System.EventHandler(this.Result_TextChanged);
-            this.Result.SelectionStart = this.Result.Text.Length;
-            this.Result.ScrollToCaret();
             // 
             // commandTextBox
             // 
-            this.commandTextBox.Location = new System.Drawing.Point(25, 436);
+            this.commandTextBox.Location = new System.Drawing.Point(19, 437);
+            this.commandTextBox.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.commandTextBox.Multiline = true;
             this.commandTextBox.Name = "commandTextBox";
-            this.commandTextBox.Size = new System.Drawing.Size(479, 38);
+            this.commandTextBox.Size = new System.Drawing.Size(360, 32);
             this.commandTextBox.TabIndex = 3;
             // 
             // RunButton
             // 
-            this.RunButton.Location = new System.Drawing.Point(547, 436);
+            this.RunButton.Location = new System.Drawing.Point(410, 438);
+            this.RunButton.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.RunButton.Name = "RunButton";
-            this.RunButton.Size = new System.Drawing.Size(193, 38);
+            this.RunButton.Size = new System.Drawing.Size(145, 31);
             this.RunButton.TabIndex = 4;
             this.RunButton.Text = "Enter";
             this.RunButton.UseVisualStyleBackColor = true;
@@ -91,14 +94,15 @@ namespace PuppetMaster
             // 
             // PuppetMasterUI
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(788, 512);
+            this.ClientSize = new System.Drawing.Size(591, 496);
             this.Controls.Add(this.RunButton);
             this.Controls.Add(this.commandTextBox);
             this.Controls.Add(this.Result);
             this.Controls.Add(this.scriptButton);
             this.Controls.Add(this.configButton);
+            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.Name = "PuppetMasterUI";
             this.Text = "PuppetMaster";
             this.Load += new System.EventHandler(this.PuppetMasterUI_Load_1);

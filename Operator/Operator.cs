@@ -83,9 +83,12 @@ namespace Operator
         private int seq = 0;
         private Timer timer1;
         public const int pingsLimit = 2;
+        public const int notAckedLimit = 4;
+
         public const int pingsTimeouts = 2500;
 
         private Dictionary<string, int> pings = new Dictionary<string, int>();
+        private Dictionary<string, int> notAckedCounters = new Dictionary<string, int>();
 
         private Dictionary<string, IList<IList<string>>> notSentTuples = new Dictionary<string, IList<IList<string>>>();
         private Dictionary<string, IList<IList<string>>> notProcessedTuples = new Dictionary<string, IList<IList<string>>>();
@@ -655,7 +658,16 @@ namespace Operator
 
         public void doProcessTuples(String machine, string machine_seq, IList<IList<string>> tuples)
         {
-            processTuples(machine, machine_seq, tuples);
+            foreach (KeyValuePair<string, IList<IList<string>>> entry in not_acked)
+            {
+                string[] splited = entry.Key.Split(';');
+                string mach = splited[0];
+                string actualSeq = splited[1];
+
+                if (machine.Equals(mach) && machine_seq.Equals(machine_seq))
+                    return;
+            }
+             processTuples(machine, machine_seq, tuples);
         }
 
         public void doAckTuples(string sequence)
@@ -768,6 +780,29 @@ namespace Operator
 
         private void pingFunction(object sender, EventArgs e)
         {
+            //resends requests if a lot of time passes
+            foreach (KeyValuePair<string, IList<IList<string>>> entry in not_acked)
+            {
+                if (!notAckedCounters.ContainsKey(entry.Key))
+                {
+                    notAckedCounters.Add(entry.Key, 0);
+                }
+                notAckedCounters[entry.Key] += 1;
+                if (notAckedCounters[entry.Key] == notAckedLimit)
+                {
+                    notAckedCounters.Remove(entry.Key);
+                    
+                    string[] splited = entry.Key.Split(';');
+                    string machine = splited[0];
+                    string actualSeq = splited[1];
+                    string destinationMachine = splited[2];
+                        
+                    doProcessTuples(machine, actualSeq, entry.Value);
+                    not_acked.Remove(entry.Key);
+
+                }
+            }
+            //end of resend
 
             foreach (string url in urls)
             {
