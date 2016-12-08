@@ -176,7 +176,6 @@ namespace Operator
 
         private bool processTuples(string machine, string machine_seq, IList<IList<string>> tuples)
         {
-            Console.WriteLine("DEBUG:");
 
             if (!canProcessTuples())
             {
@@ -208,7 +207,6 @@ namespace Operator
                         }
                         else
                         {
-                            Console.WriteLine("DEBUG1:");
 
                             foreach (IList<string> tuple in tuples)
                             {
@@ -218,7 +216,6 @@ namespace Operator
                                 foreach (List<string> t in temp)
                                     result.Add(t);
                             }
-                            Console.WriteLine("DEBUG2:");
 
 
                         }
@@ -228,7 +225,7 @@ namespace Operator
                             string res = "";
                             foreach (string s in tuple)
                                 res += s + ",";
-                            Console.WriteLine("DEBUG:" + res);
+                            //Console.WriteLine("DEBUG:" + res);
                         }
 
 
@@ -479,8 +476,40 @@ namespace Operator
             foreach (string url in urls)
                 Console.Write(url + "  ");
             Console.WriteLine("");
+            Console.Write("   Receiver Urls: ");
+            foreach (string url in this.receivers_urls)
+                Console.Write(url + "  ");
+            Console.WriteLine("");
             Console.WriteLine("   Not processed Tuples: ");
             foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+            {
+                foreach (IList<string> tuple in entry.Value)
+                {
+                    string res = "";
+                    if (tuple.Count > 0)
+                        res += tuple[0];
+                    for (int i = 1; i < tuple.Count; i++)
+                        res += "," + tuple[i];
+                    Console.WriteLine("      " + res);
+                }
+            }
+            Console.WriteLine("");
+            Console.WriteLine("   Not Sent Tuples: ");
+            foreach (KeyValuePair<string, IList<IList<string>>> entry in notSentTuples )
+            {
+                foreach (IList<string> tuple in entry.Value)
+                {
+                    string res = "";
+                    if (tuple.Count > 0)
+                        res += tuple[0];
+                    for (int i = 1; i < tuple.Count; i++)
+                        res += "," + tuple[i];
+                    Console.WriteLine("      " + res);
+                }
+            }
+            Console.WriteLine("");
+            Console.WriteLine("   Not Acked Tuples: ");
+            foreach (KeyValuePair<string, IList<IList<string>>> entry in not_acked )
             {
                 foreach (IList<string> tuple in entry.Value)
                 {
@@ -570,7 +599,8 @@ namespace Operator
                     {
                         if ((this.receiver_routing.Equals(SysConfig.PRIMARY) && url.Equals(receiverUrls[0])))
                         {
-                            foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                            //ERROR can be here, there was notProcessedTuples
+                            foreach (KeyValuePair<string, IList<IList<string>>> entry in notSentTuples)
                             {
 
                                 string machine = entry.Key.Split(';')[0];
@@ -585,7 +615,7 @@ namespace Operator
                         }
                         else if (url.Equals(receiverUrls[0]) && this.receiver_routing.Equals(SysConfig.RANDOM)) //RANDOM ROUTING
                         {
-                            foreach (KeyValuePair<string, IList<IList<string>>> entry in notProcessedTuples)
+                            foreach (KeyValuePair<string, IList<IList<string>>> entry in notSentTuples)
                             {
 
                                 string machine = entry.Key.Split(';')[0];
@@ -703,13 +733,11 @@ namespace Operator
 
                 if (receivers_urls[i].Equals(replica))
                 {
-                    Console.WriteLine("loloooooia");
 
                     receivers_urls.RemoveAt(i);
                     receivers.RemoveAt(i);
                     foreach (KeyValuePair<string, IList<IList<string>>> entry in not_acked)
                     {
-                        Console.WriteLine("loloooooi");
                         string[] splited = entry.Key.Split(';');
                         string machine = splited[0];
                         string actualSeq = splited[1];
@@ -766,13 +794,16 @@ namespace Operator
 
         private void deadReplicaDetected(string url)
         {
-            electPrimaryOperator(url);
+            if (!primary)
+            {
+                electPrimaryOperator(url);
+                //we will try to start this operator like from 0 and send request to sources
+                startOperator();
+            }
             foreach (IList<string> source in sources)
             {
                 foreach (string sourc in source)
                 {
-                    //we will try to start this operator like from 0 and send request to sources
-                    startOperator();
                     if (sourc.Contains("tcp://"))
                     {
                         channel = new TcpChannel();
