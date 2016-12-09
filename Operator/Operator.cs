@@ -83,7 +83,7 @@ namespace Operator
         private int seq = 0;
         private Timer timer1;
         public const int pingsLimit = 2;
-        public const int notAckedLimit = 8;
+        public const int notAckedLimit = 4;
 
         public const int pingsTimeouts = 2500;
 
@@ -114,6 +114,8 @@ namespace Operator
         private int random;
         private int receiver_target;
         private bool requested = false;
+
+        private bool recovering = true;
 
 
         public Operator(string pmurl, string opName, IList<IList<string>> sources, String repFact, String routing, List<String> urls, int port, string semantics, string loggingLevel, string primary, string repId, string random)
@@ -211,7 +213,7 @@ namespace Operator
                                 resu += s + ",";
                             resu += "\n";
                         }
-                        //Console.WriteLine("DEBUG Before Processing:" + resu);
+                        Console.WriteLine("DEBUG Before Processing:\n" + resu);
 
                         if (className.Equals("UniqueOperator") || className.Equals("FilterOperator") || className.Equals("CountOperator") || className.Equals("DupOperator"))
                         {
@@ -271,7 +273,7 @@ namespace Operator
                                 resu += s + ",";
                             resu += "\n";
                         }
-                        //Console.WriteLine("DEBUG After Processing:" + resu);
+                        Console.WriteLine("DEBUG After Processing:\n" + resu);
 
                         if (fullLoggingLevel && result.Count>0)
                         {
@@ -441,7 +443,7 @@ namespace Operator
                             {
                                 string[] split = line.Split(',');
                                 int replica = Math.Abs(split[field - 1].GetHashCode()) % Int32.Parse(this.repFact);
-                                if (!line.StartsWith("%") && replica == this.repId)
+                                if (!line.StartsWith("%") && (replica == this.repId|| (recovering &&primary) ))
                                 {
                                     string[] splited = removeWhiteSpaces(line).Split(',');
                                     IList<string> l = new List<string>();
@@ -914,7 +916,10 @@ namespace Operator
                 }   
             }
             if (urls[0].Equals(primaryy))
+            {
                 this.primary = true;
+                recovering = true;
+            }
         }
 
 
