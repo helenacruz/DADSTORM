@@ -211,7 +211,7 @@ namespace Operator
                                 resu += s + ",";
                             resu += "\n";
                         }
-                        Console.WriteLine("DEBUG Before Processing:" + resu);
+                        //Console.WriteLine("DEBUG Before Processing:" + resu);
 
                         if (className.Equals("UniqueOperator") || className.Equals("FilterOperator") || className.Equals("CountOperator") || className.Equals("DupOperator"))
                         {
@@ -271,7 +271,7 @@ namespace Operator
                                 resu += s + ",";
                             resu += "\n";
                         }
-                        Console.WriteLine("DEBUG After Processing:" + resu);
+                        //Console.WriteLine("DEBUG After Processing:" + resu);
 
                         if (fullLoggingLevel && result.Count>0)
                         {
@@ -304,7 +304,6 @@ namespace Operator
                         {
                             if (receiver_routing.Equals(SysConfig.PRIMARY) && result.Count>0)
                             {
-                                Console.WriteLine("THERE WE GOOOOO");
                                 relationingSequences.Add("" + seq, "" + machine_seq);
                                 not_acked.Add(machine + ";" + seq + ";" + receivers_urls[0], result);
                                 RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[0].doProcessTuples);
@@ -329,7 +328,6 @@ namespace Operator
                                 int field = Int32.Parse(aux[1].First() + "");
                                 res = new Dictionary<int, IList<IList<string>>>();
 
-                                Console.WriteLine("momo:" + machine+";" +res.Keys.Count);
                                 foreach (IList<string> tuple in result)
                                 {
                                     int replica = Math.Abs(tuple[field - 1].GetHashCode()) % Int32.Parse(this.repFact);
@@ -345,23 +343,9 @@ namespace Operator
                                         res[replica].Add(tuple);
                                     }
                                 }
-                                Console.WriteLine("momo2:" + machine + ";" + res.Keys.Count);
 
                                 foreach (int rep in res.Keys)
                                 {
-                                    //
-                                    Console.WriteLine("   LOLZINHOOOOO: " + this.urls[0] + ";" + seq + ";" + rep);
-
-                                    foreach (IList<string> tuple in res[rep])
-                                    {
-                                        string res = "";
-                                        if (tuple.Count > 0)
-                                            res += tuple[0];
-                                        for (int i = 1; i < tuple.Count; i++)
-                                            res += "," + tuple[i];
-                                        Console.WriteLine("      " + res);
-                                    }
-                                    //
                                     relationingSequences.Add("" + seq, "" + machine_seq);
                                     not_acked.Add(machine + ";" + seq + ";" + receivers_urls[rep], res[rep]);
                                     RemoteAsyncProcessTuplesDelegate remoteProcTupleDel = new RemoteAsyncProcessTuplesDelegate(receivers[rep].doProcessTuples);
